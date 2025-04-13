@@ -1,6 +1,5 @@
-
 import { useState } from 'react';
-import { Check, Plus, Trash2, X } from 'lucide-react';
+import { Check, Plus, Trash2, Clock, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,12 +20,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 export interface Task {
   id: string;
   title: string;
   completed: boolean;
   points: number;
+  deadline?: Date;
 }
 
 interface TaskListProps {
@@ -40,6 +44,7 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [taskPoints, setTaskPoints] = useState('10');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [taskDeadline, setTaskDeadline] = useState<Date | undefined>(undefined);
   
   const handleAddTask = () => {
     if (newTaskTitle.trim() === '') {
@@ -52,13 +57,55 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
       title: newTaskTitle,
       completed: false,
       points: parseInt(taskPoints),
+      deadline: taskDeadline,
     };
     
     onAddTask(newTask);
     setNewTaskTitle('');
     setTaskPoints('10');
+    setTaskDeadline(undefined);
     setIsDialogOpen(false);
-    toast.success('New task added!');
+    
+    if (taskDeadline) {
+      scheduleNotification(newTaskTitle, taskDeadline);
+      toast.success('New task added with deadline!');
+    } else {
+      toast.success('New task added!');
+    }
+  };
+
+  const scheduleNotification = (title: string, deadline: Date) => {
+    const timeUntilDeadline = deadline.getTime() - Date.now();
+    
+    if (timeUntilDeadline > 0) {
+      setTimeout(() => {
+        if (Notification.permission === 'granted') {
+          new Notification('Task Deadline Reminder', {
+            body: `Reminder: "${title}" is due now!`,
+            icon: '/favicon.ico'
+          });
+          toast.warning(`Reminder: "${title}" is due now!`, {
+            duration: 10000,
+          });
+        } else if (Notification.permission !== 'denied') {
+          Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+              new Notification('Task Deadline Reminder', {
+                body: `Reminder: "${title}" is due now!`,
+                icon: '/favicon.ico'
+              });
+            }
+          });
+          toast.warning(`Reminder: "${title}" is due now!`, {
+            duration: 10000,
+          });
+        } else {
+          toast.warning(`Reminder: "${title}" is due now!`, {
+            duration: 10000,
+          });
+        }
+      }, timeUntilDeadline);
+    }
   };
 
   const handleCompleteTask = (id: string) => {
@@ -67,7 +114,6 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
     if (task) {
       toast.success(`Task completed! +${task.points} points`);
       
-      // Create confetti effect
       for (let i = 0; i < 20; i++) {
         createConfetti();
       }
@@ -85,6 +131,21 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
     setTimeout(() => {
       confetti.remove();
     }, 5000);
+  };
+
+  const isDeadlineSoon = (deadline?: Date) => {
+    if (!deadline) return false;
+    
+    const now = new Date();
+    const timeLeft = deadline.getTime() - now.getTime();
+    const hoursLeft = timeLeft / (1000 * 60 * 60);
+    
+    return hoursLeft > 0 && hoursLeft < 24;
+  };
+
+  const isDeadlinePassed = (deadline?: Date) => {
+    if (!deadline) return false;
+    return new Date() > deadline;
   };
 
   return (
@@ -130,8 +191,42 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
                 </Select>
               </div>
               
+              <div className="space-y-2">
+                <Label>Deadline (Optional)</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !taskDeadline && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {taskDeadline ? format(taskDeadline, "PPP") : <span>Set a deadline</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={taskDeadline}
+                      onSelect={setTaskDeadline}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                <Button variant="outline" onClick={() => {
+                  setIsDialogOpen(false);
+                  setNewTaskTitle('');
+                  setTaskPoints('10');
+                  setTaskDeadline(undefined);
+                }}>
+                  Cancel
+                </Button>
                 <Button onClick={handleAddTask}>Add Task</Button>
               </div>
             </div>
@@ -146,7 +241,12 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
       ) : (
         <div className="space-y-3">
           {tasks.filter(task => !task.completed).map((task) => (
-            <Card key={task.id} className={`task-card ${task.completed ? 'bg-muted' : ''}`}>
+            <Card 
+              key={task.id} 
+              className={`task-card ${task.completed ? 'bg-muted' : ''} 
+                ${isDeadlineSoon(task.deadline) ? 'border-amber-500' : ''} 
+                ${isDeadlinePassed(task.deadline) ? 'border-red-500' : ''}`}
+            >
               <CardContent className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-3">
                   <Checkbox
@@ -154,9 +254,17 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
                     onCheckedChange={() => !task.completed && handleCompleteTask(task.id)}
                     className={task.completed ? 'bg-green-500' : ''}
                   />
-                  <span className={`${task.completed ? 'line-through text-muted-foreground' : ''}`}>
-                    {task.title}
-                  </span>
+                  <div className={`${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                    <div>{task.title}</div>
+                    {task.deadline && (
+                      <div className={`text-xs flex items-center gap-1 mt-1 
+                        ${isDeadlinePassed(task.deadline) ? 'text-red-500' : 
+                          isDeadlineSoon(task.deadline) ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                        <Clock className="h-3 w-3" />
+                        Due: {format(task.deadline, "PPP")}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-1 bg-secondary text-xs font-medium rounded-full">
@@ -188,7 +296,15 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
                     <div className="h-4 w-4 rounded-sm bg-green-500 flex items-center justify-center">
                       <Check className="h-3 w-3 text-white" />
                     </div>
-                    <span className="line-through text-muted-foreground">{task.title}</span>
+                    <div>
+                      <span className="line-through text-muted-foreground">{task.title}</span>
+                      {task.deadline && (
+                        <div className="text-xs flex items-center gap-1 mt-1 text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          Due: {format(task.deadline, "PPP")}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <Button
                     variant="ghost"

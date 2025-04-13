@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CircleUser, Trophy, CheckCheck, Ban } from 'lucide-react';
+import { CircleUser, Trophy, CheckCheck, Ban, Star } from 'lucide-react';
 
 export type TabValue = 'dashboard' | 'tasks' | 'bad-habits' | 'rewards';
 
@@ -19,7 +19,7 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
           Task Reward Buddy
         </h1>
         <div className="bg-gradient-to-r from-theme-purple to-theme-purple-light text-white px-4 py-2 rounded-full font-medium flex items-center">
-          <CircleUser className="mr-2 h-4 w-4" />
+          <Star className="mr-2 h-4 w-4" fill="currentColor" />
           <span>{points} Points</span>
         </div>
       </div>

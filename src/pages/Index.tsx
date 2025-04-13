@@ -8,7 +8,9 @@ import BadHabitList from '@/components/BadHabitList';
 import RewardList from '@/components/RewardList';
 import Dashboard from '@/components/Dashboard';
 import Header, { TabValue } from '@/components/Header';
+import StreakCalendar from '@/components/StreakCalendar';
 import { toast } from 'sonner';
+import { format, startOfDay, isSameDay } from 'date-fns';
 
 const INITIAL_TASKS: Task[] = [
   { id: '1', title: 'Complete project assignment', completed: false, points: 20 },
@@ -25,6 +27,13 @@ const INITIAL_REWARDS: Reward[] = [
   { id: '2', title: 'Order takeout', points: 100, claimed: false },
   { id: '3', title: 'Buy a new book', points: 200, claimed: false },
 ];
+
+// Define interface for daily streak data
+interface DailyStreak {
+  date: Date;
+  points: number;
+  tasksCompleted: number;
+}
 
 // Calculate points needed for each level
 const getPointsNeededForLevel = (level: number): number => {
@@ -60,6 +69,11 @@ const Index = () => {
   const [badHabitsAvoided, setBadHabitsAvoided] = useState(0);
   const [rewardsClaimed, setRewardsClaimed] = useState(0);
   
+  // Daily Streak tracking
+  const [dailyStreaks, setDailyStreaks] = useState<DailyStreak[]>([]);
+  const [todayPoints, setTodayPoints] = useState(0);
+  const [todayTasksCompleted, setTodayTasksCompleted] = useState(0);
+  
   // Calculate level information
   const [level, pointsToNextLevel, pointsNeededForNextLevel] = calculateLevel(points);
   
@@ -70,6 +84,7 @@ const Index = () => {
     const savedRewards = localStorage.getItem('rewards');
     const savedPoints = localStorage.getItem('points');
     const savedStats = localStorage.getItem('stats');
+    const savedStreaks = localStorage.getItem('dailyStreaks');
     
     if (savedTasks) setTasks(JSON.parse(savedTasks));
     if (savedBadHabits) setBadHabits(JSON.parse(savedBadHabits));
@@ -81,6 +96,29 @@ const Index = () => {
       setTasksCompleted(stats.tasksCompleted || 0);
       setBadHabitsAvoided(stats.badHabitsAvoided || 0);
       setRewardsClaimed(stats.rewardsClaimed || 0);
+    }
+    
+    if (savedStreaks) {
+      const streaks = JSON.parse(savedStreaks).map((streak: any) => ({
+        ...streak,
+        date: new Date(streak.date)
+      }));
+      setDailyStreaks(streaks);
+      
+      // Find today's streak if it exists
+      const today = startOfDay(new Date());
+      const todayStreak = streaks.find((s: DailyStreak) => isSameDay(new Date(s.date), today));
+      if (todayStreak) {
+        setTodayPoints(todayStreak.points);
+        setTodayTasksCompleted(todayStreak.tasksCompleted);
+      }
+    }
+  }, []);
+  
+  // Request notification permission on first load
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
     }
   }, []);
   
@@ -96,7 +134,37 @@ const Index = () => {
       badHabitsAvoided,
       rewardsClaimed
     }));
-  }, [tasks, badHabits, rewards, points, tasksCompleted, badHabitsAvoided, rewardsClaimed]);
+    
+    localStorage.setItem('dailyStreaks', JSON.stringify(dailyStreaks));
+  }, [tasks, badHabits, rewards, points, tasksCompleted, badHabitsAvoided, rewardsClaimed, dailyStreaks]);
+  
+  // Update today's streak on points change
+  useEffect(() => {
+    const updateTodayStreak = () => {
+      const today = startOfDay(new Date());
+      const todayStreakIndex = dailyStreaks.findIndex(streak => isSameDay(new Date(streak.date), today));
+      
+      if (todayStreakIndex >= 0) {
+        // Update existing streak for today
+        const updatedStreaks = [...dailyStreaks];
+        updatedStreaks[todayStreakIndex] = {
+          date: today,
+          points: todayPoints,
+          tasksCompleted: todayTasksCompleted
+        };
+        setDailyStreaks(updatedStreaks);
+      } else {
+        // Create new streak for today
+        setDailyStreaks([...dailyStreaks, {
+          date: today,
+          points: todayPoints,
+          tasksCompleted: todayTasksCompleted
+        }]);
+      }
+    };
+    
+    updateTodayStreak();
+  }, [todayPoints, todayTasksCompleted]);
   
   // Check for level up
   useEffect(() => {
@@ -124,6 +192,16 @@ const Index = () => {
         setPoints((prev) => prev + task.points);
         // Increment completed tasks count
         setTasksCompleted((prev) => prev + 1);
+        // Update today's streak
+        setTodayPoints((prev) => prev + task.points);
+        setTodayTasksCompleted((prev) => prev + 1);
+        
+        // Schedule deadline notification reminder if needed
+        if (task.deadline) {
+          // Clear any scheduled notifications for this task
+          // (Implementation would depend on how you track scheduled notifications)
+        }
+        
         return { ...task, completed: true };
       }
       return task;
@@ -145,6 +223,9 @@ const Index = () => {
     
     // Subtract points when bad habit is triggered
     setPoints((prev) => Math.max(0, prev - badHabit.points));
+    
+    // Update today's streak - reduce points for bad habits
+    setTodayPoints((prev) => Math.max(0, prev - badHabit.points));
   };
   
   const handleDeleteBadHabit = (id: string) => {
@@ -185,15 +266,18 @@ const Index = () => {
     switch (activeTab) {
       case 'dashboard':
         return (
-          <Dashboard
-            points={points}
-            level={level}
-            pointsToNextLevel={pointsToNextLevel}
-            pointsNeededForNextLevel={pointsNeededForNextLevel}
-            tasksCompleted={tasksCompleted}
-            badHabitsAvoided={badHabitsAvoided}
-            rewardsClaimed={rewardsClaimed}
-          />
+          <div className="space-y-6">
+            <Dashboard
+              points={points}
+              level={level}
+              pointsToNextLevel={pointsToNextLevel}
+              pointsNeededForNextLevel={pointsNeededForNextLevel}
+              tasksCompleted={tasksCompleted}
+              badHabitsAvoided={badHabitsAvoided}
+              rewardsClaimed={rewardsClaimed}
+            />
+            <StreakCalendar dailyStreaks={dailyStreaks} />
+          </div>
         );
       case 'tasks':
         return (
