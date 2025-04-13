@@ -22,7 +22,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, setHours, setMinutes } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 export interface Task {
@@ -45,6 +45,9 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
   const [taskPoints, setTaskPoints] = useState('10');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [taskDeadline, setTaskDeadline] = useState<Date | undefined>(undefined);
+  const [deadlineHour, setDeadlineHour] = useState('12');
+  const [deadlineMinute, setDeadlineMinute] = useState('00');
+  const [deadlinePeriod, setDeadlinePeriod] = useState('PM');
   
   const handleAddTask = () => {
     if (newTaskTitle.trim() === '') {
@@ -52,27 +55,55 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
       return;
     }
     
+    let finalDeadline = taskDeadline;
+    
+    if (taskDeadline) {
+      const hour = parseInt(deadlineHour);
+      const minute = parseInt(deadlineMinute);
+      
+      const hour24 = deadlinePeriod === 'PM' && hour !== 12 
+        ? hour + 12 
+        : (deadlinePeriod === 'AM' && hour === 12 ? 0 : hour);
+      
+      finalDeadline = setMinutes(setHours(taskDeadline, hour24), minute);
+    }
+    
     const newTask: Task = {
       id: Date.now().toString(),
       title: newTaskTitle,
       completed: false,
       points: parseInt(taskPoints),
-      deadline: taskDeadline,
+      deadline: finalDeadline,
     };
     
     onAddTask(newTask);
     setNewTaskTitle('');
     setTaskPoints('10');
     setTaskDeadline(undefined);
+    setDeadlineHour('12');
+    setDeadlineMinute('00');
+    setDeadlinePeriod('PM');
     setIsDialogOpen(false);
     
-    if (taskDeadline) {
-      scheduleNotification(newTaskTitle, taskDeadline);
+    if (finalDeadline) {
+      scheduleNotification(newTaskTitle, finalDeadline);
       toast.success('New task added with deadline!');
     } else {
       toast.success('New task added!');
     }
   };
+
+  const hourOptions = Array.from({ length: 12 }, (_, i) => {
+    const hour = i + 1;
+    return { value: hour.toString(), label: hour.toString().padStart(2, '0') };
+  });
+
+  const minuteOptions = [
+    { value: '00', label: '00' },
+    { value: '15', label: '15' },
+    { value: '30', label: '30' },
+    { value: '45', label: '45' },
+  ];
 
   const scheduleNotification = (title: string, deadline: Date) => {
     const timeUntilDeadline = deadline.getTime() - Date.now();
@@ -148,6 +179,10 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
     return new Date() > deadline;
   };
 
+  const formatDeadline = (deadline: Date) => {
+    return format(deadline, "PPP 'at' h:mm a");
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -192,30 +227,81 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
               </div>
               
               <div className="space-y-2">
-                <Label>Deadline (Optional)</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !taskDeadline && "text-muted-foreground"
-                      )}
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {taskDeadline ? format(taskDeadline, "PPP") : <span>Set a deadline</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={taskDeadline}
-                      onSelect={setTaskDeadline}
-                      initialFocus
-                      className="p-3 pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
+                <Label>Deadline</Label>
+                <div className="space-y-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !taskDeadline && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {taskDeadline ? format(taskDeadline, "PPP") : <span>Set a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={taskDeadline}
+                        onSelect={setTaskDeadline}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  
+                  {taskDeadline && (
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <Label htmlFor="hour">Hour</Label>
+                        <Select value={deadlineHour} onValueChange={setDeadlineHour}>
+                          <SelectTrigger id="hour">
+                            <SelectValue placeholder="Hour" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {hourOptions.map(option => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="minute">Minute</Label>
+                        <Select value={deadlineMinute} onValueChange={setDeadlineMinute}>
+                          <SelectTrigger id="minute">
+                            <SelectValue placeholder="Minute" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {minuteOptions.map(option => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="period">AM/PM</Label>
+                        <Select value={deadlinePeriod} onValueChange={setDeadlinePeriod}>
+                          <SelectTrigger id="period">
+                            <SelectValue placeholder="AM/PM" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="AM">AM</SelectItem>
+                            <SelectItem value="PM">PM</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               
               <div className="flex justify-end gap-2 pt-2">
@@ -224,6 +310,9 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
                   setNewTaskTitle('');
                   setTaskPoints('10');
                   setTaskDeadline(undefined);
+                  setDeadlineHour('12');
+                  setDeadlineMinute('00');
+                  setDeadlinePeriod('PM');
                 }}>
                   Cancel
                 </Button>
@@ -261,7 +350,7 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
                         ${isDeadlinePassed(task.deadline) ? 'text-red-500' : 
                           isDeadlineSoon(task.deadline) ? 'text-amber-500' : 'text-muted-foreground'}`}>
                         <Clock className="h-3 w-3" />
-                        Due: {format(task.deadline, "PPP")}
+                        Due: {formatDeadline(task.deadline)}
                       </div>
                     )}
                   </div>
@@ -301,7 +390,7 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
                       {task.deadline && (
                         <div className="text-xs flex items-center gap-1 mt-1 text-muted-foreground">
                           <Clock className="h-3 w-3" />
-                          Due: {format(task.deadline, "PPP")}
+                          Due: {formatDeadline(task.deadline)}
                         </div>
                       )}
                     </div>
