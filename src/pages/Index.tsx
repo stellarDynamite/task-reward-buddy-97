@@ -10,7 +10,7 @@ import Dashboard from '@/components/Dashboard';
 import Header, { TabValue } from '@/components/Header';
 import StreakCalendar from '@/components/StreakCalendar';
 import { toast } from 'sonner';
-import { format, startOfDay, isSameDay } from 'date-fns';
+import { format, startOfDay, isSameDay, parseISO } from 'date-fns';
 
 const INITIAL_TASKS: Task[] = [
   { id: '1', title: 'Complete project assignment', completed: false, points: 20 },
@@ -30,10 +30,30 @@ const INITIAL_REWARDS: Reward[] = [
 
 // Define interface for daily streak data
 interface DailyStreak {
-  date: Date;
+  date: Date | string;
   points: number;
   tasksCompleted: number;
 }
+
+// Helper function to parse dates
+const parseDates = <T extends { [key: string]: any }>(obj: T): T => {
+  const result = { ...obj };
+  Object.keys(obj).forEach(key => {
+    const value = obj[key];
+    if (key === 'date' || key === 'deadline') {
+      if (typeof value === 'string') {
+        try {
+          result[key] = parseISO(value);
+        } catch (e) {
+          console.error(`Error parsing date for key ${key}:`, e);
+        }
+      }
+    } else if (typeof value === 'object' && value !== null) {
+      result[key] = parseDates(value);
+    }
+  });
+  return result;
+};
 
 // Calculate points needed for each level
 const getPointsNeededForLevel = (level: number): number => {
@@ -86,7 +106,16 @@ const Index = () => {
     const savedStats = localStorage.getItem('stats');
     const savedStreaks = localStorage.getItem('dailyStreaks');
     
-    if (savedTasks) setTasks(JSON.parse(savedTasks));
+    if (savedTasks) {
+      try {
+        const parsedTasks = JSON.parse(savedTasks);
+        setTasks(parsedTasks.map((task: Task) => parseDates(task)));
+      } catch (e) {
+        console.error("Error parsing tasks:", e);
+        setTasks(INITIAL_TASKS);
+      }
+    }
+    
     if (savedBadHabits) setBadHabits(JSON.parse(savedBadHabits));
     if (savedRewards) setRewards(JSON.parse(savedRewards));
     if (savedPoints) setPoints(JSON.parse(savedPoints));
@@ -99,18 +128,25 @@ const Index = () => {
     }
     
     if (savedStreaks) {
-      const streaks = JSON.parse(savedStreaks).map((streak: any) => ({
-        ...streak,
-        date: new Date(streak.date)
-      }));
-      setDailyStreaks(streaks);
-      
-      // Find today's streak if it exists
-      const today = startOfDay(new Date());
-      const todayStreak = streaks.find((s: DailyStreak) => isSameDay(new Date(s.date), today));
-      if (todayStreak) {
-        setTodayPoints(todayStreak.points);
-        setTodayTasksCompleted(todayStreak.tasksCompleted);
+      try {
+        const parsedStreaks = JSON.parse(savedStreaks);
+        const streaks = parsedStreaks.map((streak: any) => parseDates(streak));
+        setDailyStreaks(streaks);
+        
+        // Find today's streak if it exists
+        const today = startOfDay(new Date());
+        const todayStreak = streaks.find((s: DailyStreak) => {
+          const streakDate = s.date instanceof Date ? s.date : parseISO(s.date as string);
+          return isSameDay(streakDate, today);
+        });
+        
+        if (todayStreak) {
+          setTodayPoints(todayStreak.points);
+          setTodayTasksCompleted(todayStreak.tasksCompleted);
+        }
+      } catch (e) {
+        console.error("Error parsing streaks:", e);
+        setDailyStreaks([]);
       }
     }
   }, []);

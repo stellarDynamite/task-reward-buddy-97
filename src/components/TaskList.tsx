@@ -22,7 +22,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { format, setHours, setMinutes } from 'date-fns';
+import { format, setHours, setMinutes, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 export interface Task {
@@ -30,7 +30,7 @@ export interface Task {
   title: string;
   completed: boolean;
   points: number;
-  deadline?: Date;
+  deadline?: Date | string;
 }
 
 interface TaskListProps {
@@ -48,6 +48,24 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
   const [deadlineHour, setDeadlineHour] = useState('12');
   const [deadlineMinute, setDeadlineMinute] = useState('00');
   const [deadlinePeriod, setDeadlinePeriod] = useState('PM');
+  
+  const ensureDate = (deadline?: Date | string): Date | undefined => {
+    if (!deadline) return undefined;
+    
+    if (deadline instanceof Date) {
+      return deadline;
+    }
+    
+    try {
+      if (typeof deadline === 'string') {
+        return parseISO(deadline);
+      }
+      return undefined;
+    } catch (error) {
+      console.error("Error parsing date:", error);
+      return undefined;
+    }
+  };
   
   const handleAddTask = () => {
     if (newTaskTitle.trim() === '') {
@@ -106,6 +124,8 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
   ];
 
   const scheduleNotification = (title: string, deadline: Date) => {
+    if (!(deadline instanceof Date)) return;
+    
     const timeUntilDeadline = deadline.getTime() - Date.now();
     
     if (timeUntilDeadline > 0) {
@@ -164,12 +184,13 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
     }, 5000);
   };
 
-  const isDeadlineSoon = (deadline?: Date): boolean => {
-    if (!deadline || !(deadline instanceof Date)) return false;
+  const isDeadlineSoon = (deadline?: Date | string): boolean => {
+    const dateObject = ensureDate(deadline);
+    if (!dateObject) return false;
     
     try {
       const now = new Date();
-      const timeLeft = deadline.getTime() - now.getTime();
+      const timeLeft = dateObject.getTime() - now.getTime();
       const hoursLeft = timeLeft / (1000 * 60 * 60);
       
       return hoursLeft > 0 && hoursLeft < 24;
@@ -179,25 +200,27 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
     }
   };
 
-  const isDeadlinePassed = (deadline?: Date): boolean => {
-    if (!deadline || !(deadline instanceof Date)) return false;
+  const isDeadlinePassed = (deadline?: Date | string): boolean => {
+    const dateObject = ensureDate(deadline);
+    if (!dateObject) return false;
     
     try {
-      return new Date() > deadline;
+      return new Date() > dateObject;
     } catch (error) {
       console.error("Error checking if deadline passed:", error);
       return false;
     }
   };
 
-  const formatDeadline = (deadline: Date): string => {
-    if (!(deadline instanceof Date)) {
+  const formatDeadline = (deadline: Date | string): string => {
+    const dateObject = ensureDate(deadline);
+    if (!dateObject) {
       console.error("Invalid deadline format:", deadline);
       return "Invalid date";
     }
     
     try {
-      return format(deadline, "PPP 'at' h:mm a");
+      return format(dateObject, "PPP 'at' h:mm a");
     } catch (error) {
       console.error("Error formatting deadline:", error);
       return "Invalid date";
