@@ -286,20 +286,20 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
           <Star className="h-5 w-5 text-yellow-500" fill="currentColor" />
           Streak Calendar
         </CardTitle>
+      </CardHeader>
+      <CardContent>
         <Tabs value={view} onValueChange={(v) => setView(v as 'weekly' | 'monthly')} className="w-full">
-          <TabsList className="grid grid-cols-2">
+          <TabsList className="grid grid-cols-2 mb-4">
             <TabsTrigger value="weekly">Weekly</TabsTrigger>
             <TabsTrigger value="monthly">Monthly</TabsTrigger>
           </TabsList>
+          <TabsContent value="weekly" className="mt-0">
+            {renderWeekView()}
+          </TabsContent>
+          <TabsContent value="monthly" className="mt-0">
+            {renderMonthView()}
+          </TabsContent>
         </Tabs>
-      </CardHeader>
-      <CardContent>
-        <TabsContent value="weekly" className="mt-0">
-          {renderWeekView()}
-        </TabsContent>
-        <TabsContent value="monthly" className="mt-0">
-          {renderMonthView()}
-        </TabsContent>
       </CardContent>
     </Card>
   );
