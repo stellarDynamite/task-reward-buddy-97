@@ -164,23 +164,44 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
     }, 5000);
   };
 
-  const isDeadlineSoon = (deadline?: Date) => {
-    if (!deadline) return false;
+  const isDeadlineSoon = (deadline?: Date): boolean => {
+    if (!deadline || !(deadline instanceof Date)) return false;
     
-    const now = new Date();
-    const timeLeft = deadline.getTime() - now.getTime();
-    const hoursLeft = timeLeft / (1000 * 60 * 60);
-    
-    return hoursLeft > 0 && hoursLeft < 24;
+    try {
+      const now = new Date();
+      const timeLeft = deadline.getTime() - now.getTime();
+      const hoursLeft = timeLeft / (1000 * 60 * 60);
+      
+      return hoursLeft > 0 && hoursLeft < 24;
+    } catch (error) {
+      console.error("Error checking deadline:", error);
+      return false;
+    }
   };
 
-  const isDeadlinePassed = (deadline?: Date) => {
-    if (!deadline) return false;
-    return new Date() > deadline;
+  const isDeadlinePassed = (deadline?: Date): boolean => {
+    if (!deadline || !(deadline instanceof Date)) return false;
+    
+    try {
+      return new Date() > deadline;
+    } catch (error) {
+      console.error("Error checking if deadline passed:", error);
+      return false;
+    }
   };
 
-  const formatDeadline = (deadline: Date) => {
-    return format(deadline, "PPP 'at' h:mm a");
+  const formatDeadline = (deadline: Date): string => {
+    if (!(deadline instanceof Date)) {
+      console.error("Invalid deadline format:", deadline);
+      return "Invalid date";
+    }
+    
+    try {
+      return format(deadline, "PPP 'at' h:mm a");
+    } catch (error) {
+      console.error("Error formatting deadline:", error);
+      return "Invalid date";
+    }
   };
 
   return (
