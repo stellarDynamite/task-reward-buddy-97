@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,23 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Custom colors for our app
+				theme: {
+					purple: {
+						light: '#9b87f5',
+						DEFAULT: '#7E69AB',
+						dark: '#6E59A5',
+					},
+					green: {
+						soft: '#F2FCE2',
+					},
+					orange: {
+						soft: '#FEC6A1',
+					},
+					yellow: {
+						soft: '#FEF7CD',
+					},
 				}
 			},
 			borderRadius: {
@@ -84,11 +102,34 @@ export default {
 					to: {
 						height: '0'
 					}
-				}
+				},
+				'confetti': {
+					'0%': { transform: 'translateY(0) rotate(0)' },
+					'100%': { transform: 'translateY(100vh) rotate(720deg)' }
+				},
+				'bounce-small': {
+					'0%, 100%': { 
+						transform: 'translateY(0)',
+						animationTimingFunction: 'cubic-bezier(0.8, 0, 1, 1)'
+					},
+					'50%': {
+						transform: 'translateY(-15%)',
+						animationTimingFunction: 'cubic-bezier(0, 0, 0.2, 1)'
+					}
+				},
+				'ping-small': {
+					'75%, 100%': {
+						transform: 'scale(1.1)',
+						opacity: '0'
+					}
+				},
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'confetti': 'confetti 3s ease-in-out forwards',
+				'bounce-small': 'bounce-small 1s infinite',
+				'ping-small': 'ping-small 1s cubic-bezier(0, 0, 0.2, 1) infinite',
 			}
 		}
 	},
