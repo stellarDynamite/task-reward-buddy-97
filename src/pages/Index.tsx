@@ -12,6 +12,10 @@ import StreakCalendar from '@/components/StreakCalendar';
 import { toast } from 'sonner';
 import { format, startOfDay, isSameDay, parseISO } from 'date-fns';
 
+// Constants for game balance
+const MAX_DAILY_LEVELS = 3;
+const MAX_DAILY_XP = 400;
+
 const INITIAL_TASKS: Task[] = [
   { id: '1', title: 'Complete project assignment', completed: false, points: 20 },
   { id: '2', title: 'Exercise for 30 minutes', completed: false, points: 10 },
@@ -29,27 +33,27 @@ const INITIAL_REWARDS: Reward[] = [
 ];
 
 // Define interface for daily streak data
-interface DailyStreak {
-  date: Date | string;
+export interface DailyStreak {
+  date: Date;
   points: number;
   tasksCompleted: number;
 }
 
 // Helper function to parse dates
 const parseDates = <T extends { [key: string]: any }>(obj: T): T => {
-  const result = { ...obj };
+  const result = { ...obj } as T;
   Object.keys(obj).forEach(key => {
     const value = obj[key];
     if (key === 'date' || key === 'deadline') {
       if (typeof value === 'string') {
         try {
-          result[key] = parseISO(value);
+          result[key as keyof T] = parseISO(value) as unknown as T[keyof T];
         } catch (e) {
           console.error(`Error parsing date for key ${key}:`, e);
         }
       }
     } else if (typeof value === 'object' && value !== null) {
-      result[key] = parseDates(value);
+      result[key as keyof T] = parseDates(value) as T[keyof T];
     }
   });
   return result;
@@ -94,6 +98,10 @@ const Index = () => {
   const [todayPoints, setTodayPoints] = useState(0);
   const [todayTasksCompleted, setTodayTasksCompleted] = useState(0);
   
+  // Game balance tracking - add these new state variables
+  const [startOfDayLevel, setStartOfDayLevel] = useState(1);
+  const [dailyXPEarned, setDailyXPEarned] = useState(0);
+  
   // Calculate level information
   const [level, pointsToNextLevel, pointsNeededForNextLevel] = calculateLevel(points);
   
@@ -105,6 +113,9 @@ const Index = () => {
     const savedPoints = localStorage.getItem('points');
     const savedStats = localStorage.getItem('stats');
     const savedStreaks = localStorage.getItem('dailyStreaks');
+    const savedStartOfDayLevel = localStorage.getItem('startOfDayLevel');
+    const savedDailyXPEarned = localStorage.getItem('dailyXPEarned');
+    const lastLoginDate = localStorage.getItem('lastLoginDate');
     
     if (savedTasks) {
       try {
@@ -136,8 +147,7 @@ const Index = () => {
         // Find today's streak if it exists
         const today = startOfDay(new Date());
         const todayStreak = streaks.find((s: DailyStreak) => {
-          const streakDate = s.date instanceof Date ? s.date : parseISO(s.date as string);
-          return isSameDay(streakDate, today);
+          return s.date instanceof Date && isSameDay(s.date, today);
         });
         
         if (todayStreak) {
@@ -148,6 +158,22 @@ const Index = () => {
         console.error("Error parsing streaks:", e);
         setDailyStreaks([]);
       }
+    }
+    
+    // Check if this is a new day and reset daily limits if needed
+    const today = startOfDay(new Date()).toISOString();
+    if (lastLoginDate !== today) {
+      // It's a new day, reset daily limits
+      const currentLevel = calculateLevel(savedPoints ? JSON.parse(savedPoints) : 50)[0];
+      setStartOfDayLevel(currentLevel);
+      setDailyXPEarned(0);
+      
+      // Update last login date
+      localStorage.setItem('lastLoginDate', today);
+    } else {
+      // Same day, load saved limits
+      if (savedStartOfDayLevel) setStartOfDayLevel(JSON.parse(savedStartOfDayLevel));
+      if (savedDailyXPEarned) setDailyXPEarned(JSON.parse(savedDailyXPEarned));
     }
   }, []);
   
@@ -172,13 +198,19 @@ const Index = () => {
     }));
     
     localStorage.setItem('dailyStreaks', JSON.stringify(dailyStreaks));
-  }, [tasks, badHabits, rewards, points, tasksCompleted, badHabitsAvoided, rewardsClaimed, dailyStreaks]);
+    
+    // Save game balance tracking
+    localStorage.setItem('startOfDayLevel', JSON.stringify(startOfDayLevel));
+    localStorage.setItem('dailyXPEarned', JSON.stringify(dailyXPEarned));
+  }, [tasks, badHabits, rewards, points, tasksCompleted, badHabitsAvoided, rewardsClaimed, dailyStreaks, startOfDayLevel, dailyXPEarned]);
   
   // Update today's streak on points change
   useEffect(() => {
     const updateTodayStreak = () => {
       const today = startOfDay(new Date());
-      const todayStreakIndex = dailyStreaks.findIndex(streak => isSameDay(new Date(streak.date), today));
+      const todayStreakIndex = dailyStreaks.findIndex(streak => 
+        streak.date instanceof Date && isSameDay(streak.date, today)
+      );
       
       if (todayStreakIndex >= 0) {
         // Update existing streak for today
@@ -208,13 +240,61 @@ const Index = () => {
     const prevLevel = localStorage.getItem('userLevel');
     
     if (prevLevel && parseInt(prevLevel) < newLevel) {
-      toast.success(`Level Up! You've reached level ${newLevel}! 🎉`, {
+      // Check if we've exceeded max daily levels
+      if (newLevel - startOfDayLevel > MAX_DAILY_LEVELS) {
+        toast.warning(`You've reached the daily level limit (${MAX_DAILY_LEVELS} levels per day)`, {
+          duration: 5000,
+        });
+        
+        // Calculate the max points allowed for today's level limit
+        let maxPointsForLevel = 0;
+        let tempLevel = startOfDayLevel;
+        for (let i = 0; i < MAX_DAILY_LEVELS; i++) {
+          maxPointsForLevel += getPointsNeededForLevel(tempLevel);
+          tempLevel++;
+        }
+        
+        // Adjust points to not exceed max level
+        const prevLevelPoints = JSON.parse(prevLevel || '1');
+        setPoints(maxPointsForLevel);
+      } else {
+        toast.success(`Level Up! You've reached level ${newLevel}! 🎉`, {
+          duration: 5000,
+        });
+      }
+    }
+    
+    localStorage.setItem('userLevel', newLevel.toString());
+  }, [points, startOfDayLevel]);
+  
+  // Function to add points with daily XP limit
+  const addPoints = (pointsToAdd: number) => {
+    // Calculate how much XP we can still add today
+    const remainingDailyXP = MAX_DAILY_XP - dailyXPEarned;
+    
+    if (remainingDailyXP <= 0) {
+      // Already reached daily XP limit
+      toast.warning(`You've reached the daily XP limit (${MAX_DAILY_XP} XP)`, {
+        duration: 5000,
+      });
+      return;
+    }
+    
+    // Determine how many points we can actually add
+    const actualPointsToAdd = Math.min(pointsToAdd, remainingDailyXP);
+    
+    if (actualPointsToAdd < pointsToAdd) {
+      toast.warning(`Only added ${actualPointsToAdd} XP (daily limit: ${MAX_DAILY_XP} XP)`, {
         duration: 5000,
       });
     }
     
-    localStorage.setItem('userLevel', newLevel.toString());
-  }, [points]);
+    // Update points and daily XP tracking
+    setPoints(prev => prev + actualPointsToAdd);
+    setDailyXPEarned(prev => prev + actualPointsToAdd);
+    
+    return actualPointsToAdd;
+  };
   
   // Task handlers
   const handleAddTask = (task: Task) => {
@@ -222,26 +302,33 @@ const Index = () => {
   };
   
   const handleCompleteTask = (id: string) => {
-    setTasks(tasks.map((task) => {
-      if (task.id === id) {
-        // Add points when task is completed
-        setPoints((prev) => prev + task.points);
-        // Increment completed tasks count
-        setTasksCompleted((prev) => prev + 1);
-        // Update today's streak
-        setTodayPoints((prev) => prev + task.points);
-        setTodayTasksCompleted((prev) => prev + 1);
-        
-        // Schedule deadline notification reminder if needed
-        if (task.deadline) {
-          // Clear any scheduled notifications for this task
-          // (Implementation would depend on how you track scheduled notifications)
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    
+    // Add points when task is completed (with daily limit)
+    const pointsAdded = addPoints(task.points);
+    
+    if (pointsAdded) {
+      // Increment completed tasks count
+      setTasksCompleted((prev) => prev + 1);
+      // Update today's streak
+      setTodayPoints((prev) => prev + pointsAdded);
+      setTodayTasksCompleted((prev) => prev + 1);
+      
+      // Mark task as completed
+      setTasks(tasks.map((t) => {
+        if (t.id === id) {
+          return { ...t, completed: true };
         }
-        
-        return { ...task, completed: true };
+        return t;
+      }));
+      
+      // Schedule deadline notification reminder if needed
+      if (task.deadline) {
+        // Clear any scheduled notifications for this task
+        // (Implementation would depend on how you track scheduled notifications)
       }
-      return task;
-    }));
+    }
   };
   
   const handleDeleteTask = (id: string) => {

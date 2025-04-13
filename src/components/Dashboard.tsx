@@ -1,8 +1,9 @@
 
 import React from 'react';
-import { CircleUser, Trophy, Star } from 'lucide-react';
+import { CircleUser, Trophy, Star, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface DashboardProps {
   points: number;
@@ -25,6 +26,11 @@ const Dashboard = ({
 }: DashboardProps) => {
   const progress = (pointsToNextLevel / pointsNeededForNextLevel) * 100;
   
+  // Get daily XP limit info from localStorage
+  const dailyXPEarned = Number(localStorage.getItem('dailyXPEarned') || '0');
+  const MAX_DAILY_XP = 400; // Should match the constant in Index.tsx
+  const dailyXPProgress = Math.min((dailyXPEarned / MAX_DAILY_XP) * 100, 100);
+  
   return (
     <div className="space-y-6">
       <Card className="bg-gradient-to-r from-theme-purple-light to-theme-purple border-0">
@@ -42,7 +48,41 @@ const Dashboard = ({
           <Progress value={progress} className="h-3 bg-white/20" />
           <div className="text-xs mt-1 text-white/80 flex justify-between">
             <span>{pointsToNextLevel} / {pointsNeededForNextLevel} points</span>
-            <span>Next Level: {level + 1}</span>
+            <div className="flex items-center gap-1">
+              <span>Next Level: {level + 1}</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Max 3 levels per day</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </div>
+          
+          {/* Daily XP Limit Progress */}
+          <div className="mt-4">
+            <div className="flex justify-between items-center text-xs text-white/80 mb-1">
+              <span>Daily XP: {dailyXPEarned} / {MAX_DAILY_XP}</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Maximum XP per day: {MAX_DAILY_XP}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Progress 
+              value={dailyXPProgress} 
+              className="h-2 bg-white/20" 
+              indicatorClassName={dailyXPEarned >= MAX_DAILY_XP ? "bg-amber-400" : ""}
+            />
           </div>
         </CardContent>
       </Card>
