@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Gift, Plus, ShoppingCart, Trash2 } from 'lucide-react';
+import { Gift, Plus, ShoppingCart, Trash2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -42,6 +42,12 @@ const RewardList = ({ rewards, userPoints, onAddReward, onClaimReward, onDeleteR
   const [rewardPoints, setRewardPoints] = useState('50');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
+  // New state for editing rewards
+  const [editingReward, setEditingReward] = useState<Reward | null>(null);
+  const [editRewardTitle, setEditRewardTitle] = useState('');
+  const [editRewardPoints, setEditRewardPoints] = useState('');
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  
   const handleAddReward = () => {
     if (newRewardTitle.trim() === '') {
       toast.error('Please enter a reward title');
@@ -70,6 +76,40 @@ const RewardList = ({ rewards, userPoints, onAddReward, onClaimReward, onDeleteR
     
     onClaimReward(reward.id);
     toast.success(`Reward claimed! Enjoy your "${reward.title}"!`);
+  };
+  
+  const handleEditReward = () => {
+    if (!editingReward) return;
+    
+    if (editRewardTitle.trim() === '') {
+      toast.error('Please enter a reward title');
+      return;
+    }
+    
+    // Create updated reward object
+    const updatedReward: Reward = {
+      ...editingReward,
+      title: editRewardTitle,
+      points: parseInt(editRewardPoints),
+    };
+    
+    // Remove the old reward and add the updated one
+    onDeleteReward(editingReward.id);
+    onAddReward(updatedReward);
+    
+    // Reset edit state
+    setEditingReward(null);
+    setEditRewardTitle('');
+    setEditRewardPoints('');
+    setIsEditDialogOpen(false);
+    toast.success('Reward updated!');
+  };
+  
+  const openEditDialog = (reward: Reward) => {
+    setEditingReward(reward);
+    setEditRewardTitle(reward.title);
+    setEditRewardPoints(reward.points.toString());
+    setIsEditDialogOpen(true);
   };
 
   return (
@@ -124,6 +164,49 @@ const RewardList = ({ rewards, userPoints, onAddReward, onClaimReward, onDeleteR
         </Dialog>
       </div>
       
+      {/* Edit Reward Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Reward</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="editRewardTitle">Reward Title</Label>
+              <Input
+                id="editRewardTitle"
+                placeholder="Enter reward title..."
+                value={editRewardTitle}
+                onChange={(e) => setEditRewardTitle(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="editRewardPoints">Points Cost</Label>
+              <Select
+                value={editRewardPoints}
+                onValueChange={setEditRewardPoints}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select points" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="50">50 points</SelectItem>
+                  <SelectItem value="100">100 points</SelectItem>
+                  <SelectItem value="200">200 points</SelectItem>
+                  <SelectItem value="500">500 points</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleEditReward}>Save Changes</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
       {rewards.length === 0 ? (
         <div className="text-center py-10 text-muted-foreground">
           <p>No rewards yet. Add some rewards to motivate yourself!</p>
@@ -143,6 +226,14 @@ const RewardList = ({ rewards, userPoints, onAddReward, onClaimReward, onDeleteR
               <CardContent className="p-4 pt-4 flex items-center justify-between">
                 <div className="text-lg font-bold">{reward.points} points</div>
                 <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => openEditDialog(reward)}
+                    className="h-8 w-8"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                   <Button
                     size="sm"
                     disabled={userPoints < reward.points}
@@ -181,8 +272,26 @@ const RewardList = ({ rewards, userPoints, onAddReward, onClaimReward, onDeleteR
                     </div>
                     <span>{reward.title}</span>
                   </div>
-                  <div className="text-sm font-medium">
-                    {reward.points} points
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm font-medium">
+                      {reward.points} points
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-muted-foreground"
+                      onClick={() => onDeleteReward(reward.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground"
+                      onClick={() => openEditDialog(reward)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
