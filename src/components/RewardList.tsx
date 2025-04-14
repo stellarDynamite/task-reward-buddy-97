@@ -26,6 +26,7 @@ export interface Reward {
   title: string;
   points: number;
   claimed: boolean;
+  lastClaimed?: string; // ISO string date when the reward was last claimed
 }
 
 interface RewardListProps {

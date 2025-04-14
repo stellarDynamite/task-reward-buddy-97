@@ -170,6 +170,29 @@ const Index = () => {
       
       // Update last login date
       localStorage.setItem('lastLoginDate', today);
+      
+      // Reset claimed rewards for a new day
+      if (savedRewards) {
+        try {
+          const parsedRewards = JSON.parse(savedRewards);
+          const renewedRewards = parsedRewards.map((reward: Reward) => {
+            if (reward.claimed && reward.lastClaimed) {
+              // Check if the last claimed date is not today
+              const claimDate = parseISO(reward.lastClaimed);
+              if (!isSameDay(claimDate, new Date())) {
+                return { ...reward, claimed: false };
+              }
+            }
+            return reward;
+          });
+          setRewards(renewedRewards);
+          toast.success("Your rewards have been renewed for a new day!", {
+            duration: 3000,
+          });
+        } catch (e) {
+          console.error("Error renewing rewards:", e);
+        }
+      }
     } else {
       // Same day, load saved limits
       if (savedStartOfDayLevel) setStartOfDayLevel(JSON.parse(savedStartOfDayLevel));
@@ -369,12 +392,16 @@ const Index = () => {
     // Subtract points when reward is claimed
     setPoints((prev) => prev - reward.points);
     
-    // Mark reward as claimed
+    // Mark reward as claimed and store the claiming date
     setRewards(rewards.map((r) => {
       if (r.id === id) {
         // Increment claimed rewards count
         setRewardsClaimed((prev) => prev + 1);
-        return { ...r, claimed: true };
+        return { 
+          ...r, 
+          claimed: true,
+          lastClaimed: new Date().toISOString() // Store the current date
+        };
       }
       return r;
     }));
