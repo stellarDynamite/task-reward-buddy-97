@@ -12,9 +12,9 @@ interface DashboardProps {
   pointsToNextLevel: number;
   pointsNeededForNextLevel: number;
   tasksCompleted: number;
-  totalTasks: number;  // New prop for total number of tasks
+  totalTasks: number;
   badHabitsAvoided: number;
-  totalBadHabits: number;  // New prop for total number of bad habits
+  totalBadHabits: number;
   rewardsClaimed: number;
 }
 

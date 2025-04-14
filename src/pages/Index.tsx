@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Task } from '@/components/TaskList';
 import { BadHabit } from '@/components/BadHabitList';
@@ -90,7 +89,7 @@ const Index = () => {
   
   // Stats
   const [tasksCompleted, setTasksCompleted] = useState(0);
-  const [badHabitsAvoided, setBadHabitsAvoided] = useState(0);
+  const [badHabitsAvoided, setBadHabitsAvoided] = useState(INITIAL_BAD_HABITS.length);
   const [rewardsClaimed, setRewardsClaimed] = useState(0);
   
   // Daily Streak tracking
@@ -127,15 +126,30 @@ const Index = () => {
       }
     }
     
-    if (savedBadHabits) setBadHabits(JSON.parse(savedBadHabits));
+    if (savedBadHabits) {
+      const parsedBadHabits = JSON.parse(savedBadHabits);
+      setBadHabits(parsedBadHabits);
+      setBadHabitsAvoided(parsedBadHabits.length);
+    }
+    
     if (savedRewards) setRewards(JSON.parse(savedRewards));
     if (savedPoints) setPoints(JSON.parse(savedPoints));
     
     if (savedStats) {
       const stats = JSON.parse(savedStats);
       setTasksCompleted(stats.tasksCompleted || 0);
-      setBadHabitsAvoided(stats.badHabitsAvoided || 0);
+      if (stats.badHabitsAvoided !== undefined) {
+        setBadHabitsAvoided(stats.badHabitsAvoided);
+      } else if (savedBadHabits) {
+        setBadHabitsAvoided(JSON.parse(savedBadHabits).length);
+      }
       setRewardsClaimed(stats.rewardsClaimed || 0);
+    } else {
+      if (savedBadHabits) {
+        setBadHabitsAvoided(JSON.parse(savedBadHabits).length);
+      } else {
+        setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
+      }
     }
     
     if (savedStreaks) {
@@ -144,7 +158,6 @@ const Index = () => {
         const streaks = parsedStreaks.map((streak: any) => parseDates(streak));
         setDailyStreaks(streaks);
         
-        // Find today's streak if it exists
         const today = startOfDay(new Date());
         const todayStreak = streaks.find((s: DailyStreak) => {
           return s.date instanceof Date && isSameDay(s.date, today);
@@ -160,24 +173,25 @@ const Index = () => {
       }
     }
     
-    // Check if this is a new day and reset daily limits if needed
     const today = startOfDay(new Date()).toISOString();
     if (lastLoginDate !== today) {
-      // It's a new day, reset daily limits
       const currentLevel = calculateLevel(savedPoints ? JSON.parse(savedPoints) : 50)[0];
       setStartOfDayLevel(currentLevel);
       setDailyXPEarned(0);
       
-      // Update last login date
       localStorage.setItem('lastLoginDate', today);
       
-      // Reset claimed rewards for a new day
+      if (savedBadHabits) {
+        setBadHabitsAvoided(JSON.parse(savedBadHabits).length);
+      } else {
+        setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
+      }
+      
       if (savedRewards) {
         try {
           const parsedRewards = JSON.parse(savedRewards);
           const renewedRewards = parsedRewards.map((reward: Reward) => {
             if (reward.claimed && reward.lastClaimed) {
-              // Check if the last claimed date is not today
               const claimDate = parseISO(reward.lastClaimed);
               if (!isSameDay(claimDate, new Date())) {
                 return { ...reward, claimed: false };
@@ -194,20 +208,17 @@ const Index = () => {
         }
       }
     } else {
-      // Same day, load saved limits
       if (savedStartOfDayLevel) setStartOfDayLevel(JSON.parse(savedStartOfDayLevel));
       if (savedDailyXPEarned) setDailyXPEarned(JSON.parse(savedDailyXPEarned));
     }
   }, []);
   
-  // Request notification permission on first load
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
   }, []);
   
-  // Save data to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
     localStorage.setItem('badHabits', JSON.stringify(badHabits));
@@ -222,12 +233,10 @@ const Index = () => {
     
     localStorage.setItem('dailyStreaks', JSON.stringify(dailyStreaks));
     
-    // Save game balance tracking
     localStorage.setItem('startOfDayLevel', JSON.stringify(startOfDayLevel));
     localStorage.setItem('dailyXPEarned', JSON.stringify(dailyXPEarned));
   }, [tasks, badHabits, rewards, points, tasksCompleted, badHabitsAvoided, rewardsClaimed, dailyStreaks, startOfDayLevel, dailyXPEarned]);
   
-  // Update today's streak on points change
   useEffect(() => {
     const updateTodayStreak = () => {
       const today = startOfDay(new Date());
@@ -236,7 +245,6 @@ const Index = () => {
       );
       
       if (todayStreakIndex >= 0) {
-        // Update existing streak for today
         const updatedStreaks = [...dailyStreaks];
         updatedStreaks[todayStreakIndex] = {
           date: today,
@@ -245,7 +253,6 @@ const Index = () => {
         };
         setDailyStreaks(updatedStreaks);
       } else {
-        // Create new streak for today
         setDailyStreaks([...dailyStreaks, {
           date: today,
           points: todayPoints,
@@ -257,19 +264,16 @@ const Index = () => {
     updateTodayStreak();
   }, [todayPoints, todayTasksCompleted]);
   
-  // Check for level up
   useEffect(() => {
     const [newLevel] = calculateLevel(points);
     const prevLevel = localStorage.getItem('userLevel');
     
     if (prevLevel && parseInt(prevLevel) < newLevel) {
-      // Check if we've exceeded max daily levels
       if (newLevel - startOfDayLevel > MAX_DAILY_LEVELS) {
         toast.warning(`You've reached the daily level limit (${MAX_DAILY_LEVELS} levels per day)`, {
           duration: 5000,
         });
         
-        // Calculate the max points allowed for today's level limit
         let maxPointsForLevel = 0;
         let tempLevel = startOfDayLevel;
         for (let i = 0; i < MAX_DAILY_LEVELS; i++) {
@@ -277,8 +281,6 @@ const Index = () => {
           tempLevel++;
         }
         
-        // Adjust points to not exceed max level
-        const prevLevelPoints = JSON.parse(prevLevel || '1');
         setPoints(maxPointsForLevel);
       } else {
         toast.success(`Level Up! You've reached level ${newLevel}! 🎉`, {
@@ -290,20 +292,16 @@ const Index = () => {
     localStorage.setItem('userLevel', newLevel.toString());
   }, [points, startOfDayLevel]);
   
-  // Function to add points with daily XP limit
   const addPoints = (pointsToAdd: number) => {
-    // Calculate how much XP we can still add today
     const remainingDailyXP = MAX_DAILY_XP - dailyXPEarned;
     
     if (remainingDailyXP <= 0) {
-      // Already reached daily XP limit
       toast.warning(`You've reached the daily XP limit (${MAX_DAILY_XP} XP)`, {
         duration: 5000,
       });
       return;
     }
     
-    // Determine how many points we can actually add
     const actualPointsToAdd = Math.min(pointsToAdd, remainingDailyXP);
     
     if (actualPointsToAdd < pointsToAdd) {
@@ -312,14 +310,12 @@ const Index = () => {
       });
     }
     
-    // Update points and daily XP tracking
     setPoints(prev => prev + actualPointsToAdd);
     setDailyXPEarned(prev => prev + actualPointsToAdd);
     
     return actualPointsToAdd;
   };
   
-  // Task handlers
   const handleAddTask = (task: Task) => {
     setTasks([...tasks, task]);
   };
@@ -328,29 +324,19 @@ const Index = () => {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
     
-    // Add points when task is completed (with daily limit)
     const pointsAdded = addPoints(task.points);
     
     if (pointsAdded) {
-      // Increment completed tasks count
       setTasksCompleted((prev) => prev + 1);
-      // Update today's streak
       setTodayPoints((prev) => prev + pointsAdded);
       setTodayTasksCompleted((prev) => prev + 1);
       
-      // Mark task as completed
       setTasks(tasks.map((t) => {
         if (t.id === id) {
           return { ...t, completed: true };
         }
         return t;
       }));
-      
-      // Schedule deadline notification reminder if needed
-      if (task.deadline) {
-        // Clear any scheduled notifications for this task
-        // (Implementation would depend on how you track scheduled notifications)
-      }
     }
   };
   
@@ -358,29 +344,31 @@ const Index = () => {
     setTasks(tasks.filter((task) => task.id !== id));
   };
   
-  // Bad habit handlers
   const handleAddBadHabit = (badHabit: BadHabit) => {
     setBadHabits([...badHabits, badHabit]);
+    setBadHabitsAvoided(prev => prev + 1);
   };
   
   const handleTriggerBadHabit = (id: string) => {
     const badHabit = badHabits.find((habit) => habit.id === id);
     if (!badHabit) return;
     
-    // Subtract points when bad habit is triggered
     setPoints((prev) => Math.max(0, prev - badHabit.points));
-    
-    // Update today's streak - reduce points for bad habits
     setTodayPoints((prev) => Math.max(0, prev - badHabit.points));
+    
+    setBadHabitsAvoided(prev => Math.max(0, prev - 1));
   };
   
   const handleDeleteBadHabit = (id: string) => {
+    const habitsTriggered = badHabits.length - badHabitsAvoided;
+    
     setBadHabits(badHabits.filter((habit) => habit.id !== id));
-    // Increment avoided bad habits count
-    setBadHabitsAvoided((prev) => prev + 1);
+    
+    if (habitsTriggered > 0) {
+      setBadHabitsAvoided(prev => Math.max(0, prev - 1));
+    }
   };
   
-  // Reward handlers
   const handleAddReward = (reward: Reward) => {
     setRewards([...rewards, reward]);
   };
@@ -389,18 +377,15 @@ const Index = () => {
     const reward = rewards.find((r) => r.id === id);
     if (!reward || points < reward.points) return;
     
-    // Subtract points when reward is claimed
     setPoints((prev) => prev - reward.points);
     
-    // Mark reward as claimed and store the claiming date
     setRewards(rewards.map((r) => {
       if (r.id === id) {
-        // Increment claimed rewards count
         setRewardsClaimed((prev) => prev + 1);
         return { 
           ...r, 
           claimed: true,
-          lastClaimed: new Date().toISOString() // Store the current date
+          lastClaimed: new Date().toISOString()
         };
       }
       return r;
@@ -411,7 +396,6 @@ const Index = () => {
     setRewards(rewards.filter((reward) => reward.id !== id));
   };
   
-  // Render appropriate component based on active tab
   const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
