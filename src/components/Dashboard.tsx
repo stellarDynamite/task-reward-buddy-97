@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { CircleUser, Trophy, Star, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -112,7 +111,7 @@ const Dashboard = ({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{badHabitsAvoided} / {totalBadHabits}</div>
+            <div className="text-3xl font-bold">{badHabitsAvoided}</div>
           </CardContent>
         </Card>
         
