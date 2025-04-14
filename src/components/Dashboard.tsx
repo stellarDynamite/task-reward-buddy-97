@@ -4,6 +4,7 @@ import { CircleUser, Trophy, Star, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from '@/lib/utils';
 
 interface DashboardProps {
   points: number;
@@ -80,8 +81,7 @@ const Dashboard = ({
             </div>
             <Progress 
               value={dailyXPProgress} 
-              className="h-2 bg-white/20" 
-              indicatorClassName={dailyXPEarned >= MAX_DAILY_XP ? "bg-amber-400" : ""}
+              className={cn("h-2 bg-white/20", dailyXPEarned >= MAX_DAILY_XP ? "bg-amber-400" : "")}
             />
           </div>
         </CardContent>
