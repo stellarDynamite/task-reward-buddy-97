@@ -423,7 +423,9 @@ const Index = () => {
               pointsToNextLevel={pointsToNextLevel}
               pointsNeededForNextLevel={pointsNeededForNextLevel}
               tasksCompleted={tasksCompleted}
+              totalTasks={tasks.length}
               badHabitsAvoided={badHabitsAvoided}
+              totalBadHabits={badHabits.length}
               rewardsClaimed={rewardsClaimed}
             />
             <StreakCalendar dailyStreaks={dailyStreaks} />

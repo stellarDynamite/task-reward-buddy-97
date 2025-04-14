@@ -12,7 +12,9 @@ interface DashboardProps {
   pointsToNextLevel: number;
   pointsNeededForNextLevel: number;
   tasksCompleted: number;
+  totalTasks: number;  // New prop for total number of tasks
   badHabitsAvoided: number;
+  totalBadHabits: number;  // New prop for total number of bad habits
   rewardsClaimed: number;
 }
 
@@ -22,7 +24,9 @@ const Dashboard = ({
   pointsToNextLevel,
   pointsNeededForNextLevel,
   tasksCompleted,
+  totalTasks,
   badHabitsAvoided,
+  totalBadHabits,
   rewardsClaimed,
 }: DashboardProps) => {
   const progress = (pointsToNextLevel / pointsNeededForNextLevel) * 100;
@@ -96,7 +100,7 @@ const Dashboard = ({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{tasksCompleted}</div>
+            <div className="text-3xl font-bold">{tasksCompleted} / {totalTasks}</div>
           </CardContent>
         </Card>
         
@@ -108,7 +112,7 @@ const Dashboard = ({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{badHabitsAvoided}</div>
+            <div className="text-3xl font-bold">{badHabitsAvoided} / {totalBadHabits}</div>
           </CardContent>
         </Card>
         
