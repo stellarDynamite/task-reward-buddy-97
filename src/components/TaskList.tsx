@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Plus, Trash2, Clock, Calendar } from 'lucide-react';
+import { Check, Plus, Trash2, Clock, Calendar, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -38,9 +38,16 @@ interface TaskListProps {
   onAddTask: (task: Task) => void;
   onCompleteTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
+  onEditTask?: (task: Task) => void;
 }
 
-const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListProps) => {
+const TaskList = ({ 
+  tasks, 
+  onAddTask, 
+  onCompleteTask, 
+  onDeleteTask, 
+  onEditTask 
+}: TaskListProps) => {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [taskPoints, setTaskPoints] = useState('10');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -48,6 +55,9 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
   const [deadlineHour, setDeadlineHour] = useState('12');
   const [deadlineMinute, setDeadlineMinute] = useState('00');
   const [deadlinePeriod, setDeadlinePeriod] = useState('PM');
+  
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   
   const ensureDate = (deadline?: Date | string): Date | undefined => {
     if (!deadline) return undefined;
@@ -109,6 +119,72 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
     } else {
       toast.success('New task added!');
     }
+  };
+
+  const handleEditTask = () => {
+    if (!editingTask) return;
+    if (editingTask.title.trim() === '') {
+      toast.error('Please enter a task title');
+      return;
+    }
+    
+    let finalDeadline = taskDeadline;
+    
+    if (taskDeadline) {
+      const hour = parseInt(deadlineHour);
+      const minute = parseInt(deadlineMinute);
+      
+      const hour24 = deadlinePeriod === 'PM' && hour !== 12 
+        ? hour + 12 
+        : (deadlinePeriod === 'AM' && hour === 12 ? 0 : hour);
+      
+      finalDeadline = setMinutes(setHours(taskDeadline, hour24), minute);
+    }
+    
+    const updatedTask: Task = {
+      ...editingTask,
+      title: editingTask.title,
+      points: editingTask.points,
+      deadline: finalDeadline,
+    };
+    
+    if (onEditTask) {
+      onEditTask(updatedTask);
+    }
+    
+    setIsEditDialogOpen(false);
+    setEditingTask(null);
+    setTaskDeadline(undefined);
+    setDeadlineHour('12');
+    setDeadlineMinute('00');
+    setDeadlinePeriod('PM');
+    
+    toast.success('Task updated successfully!');
+  };
+
+  const startEditTask = (task: Task) => {
+    setEditingTask(task);
+    
+    const dateObj = ensureDate(task.deadline);
+    setTaskDeadline(dateObj);
+    
+    if (dateObj) {
+      const hours = dateObj.getHours();
+      const minutes = dateObj.getMinutes();
+      
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const hour12 = hours % 12 || 12;
+      
+      setDeadlineHour(hour12.toString());
+      setDeadlineMinute(minutes === 0 ? '00' : minutes.toString());
+      setDeadlinePeriod(period);
+    } else {
+      setDeadlineHour('12');
+      setDeadlineMinute('00');
+      setDeadlinePeriod('PM');
+    }
+    
+    setIsEditDialogOpen(true);
   };
 
   const hourOptions = Array.from({ length: 12 }, (_, i) => {
@@ -367,6 +443,134 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
         </Dialog>
       </div>
       
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+          </DialogHeader>
+          {editingTask && (
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="editTaskTitle">Task Title</Label>
+                <Input
+                  id="editTaskTitle"
+                  placeholder="Enter task title..."
+                  value={editingTask.title}
+                  onChange={(e) => setEditingTask({...editingTask, title: e.target.value})}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="editTaskPoints">Points</Label>
+                <Select
+                  value={editingTask.points.toString()}
+                  onValueChange={(value) => setEditingTask({...editingTask, points: parseInt(value)})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select points" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5 points - Easy</SelectItem>
+                    <SelectItem value="10">10 points - Medium</SelectItem>
+                    <SelectItem value="20">20 points - Hard</SelectItem>
+                    <SelectItem value="50">50 points - Challenge</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Deadline</Label>
+                <div className="space-y-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !taskDeadline && "text-muted-foreground"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {taskDeadline ? format(taskDeadline, "PPP") : <span>Set a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={taskDeadline}
+                        onSelect={setTaskDeadline}
+                        initialFocus
+                        className="p-3 pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  
+                  {taskDeadline && (
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <Label htmlFor="editHour">Hour</Label>
+                        <Select value={deadlineHour} onValueChange={setDeadlineHour}>
+                          <SelectTrigger id="editHour">
+                            <SelectValue placeholder="Hour" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {hourOptions.map(option => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="editMinute">Minute</Label>
+                        <Select value={deadlineMinute} onValueChange={setDeadlineMinute}>
+                          <SelectTrigger id="editMinute">
+                            <SelectValue placeholder="Minute" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {minuteOptions.map(option => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="editPeriod">AM/PM</Label>
+                        <Select value={deadlinePeriod} onValueChange={setDeadlinePeriod}>
+                          <SelectTrigger id="editPeriod">
+                            <SelectValue placeholder="AM/PM" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="AM">AM</SelectItem>
+                            <SelectItem value="PM">PM</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => {
+                  setIsEditDialogOpen(false);
+                  setEditingTask(null);
+                  setTaskDeadline(undefined);
+                }}>
+                  Cancel
+                </Button>
+                <Button onClick={handleEditTask}>Save Changes</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      
       {tasks.length === 0 ? (
         <div className="text-center py-10 text-muted-foreground">
           <p>No tasks yet. Add some tasks to start earning points!</p>
@@ -403,6 +607,14 @@ const TaskList = ({ tasks, onAddTask, onCompleteTask, onDeleteTask }: TaskListPr
                   <span className="px-2 py-1 bg-secondary text-xs font-medium rounded-full">
                     +{task.points} pts
                   </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => startEditTask(task)}
+                    className="text-muted-foreground hover:text-primary"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"

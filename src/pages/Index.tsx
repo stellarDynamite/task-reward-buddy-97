@@ -87,9 +87,9 @@ const Index = () => {
   const [points, setPoints] = useState(50);
   const [activeTab, setActiveTab] = useState<TabValue>('dashboard');
   
-  // Stats
-  const [tasksCompleted, setTasksCompleted] = useState(0);
-  const [badHabitsAvoided, setBadHabitsAvoided] = useState(INITIAL_BAD_HABITS.length);
+  // Stats - we'll now compute these directly from the state instead of tracking separately
+  const tasksCompleted = tasks.filter(task => task.completed).length;
+  const badHabitsAvoided = badHabits.length; // We'll reset this daily
   const [rewardsClaimed, setRewardsClaimed] = useState(0);
   
   // Daily Streak tracking
@@ -129,7 +129,6 @@ const Index = () => {
     if (savedBadHabits) {
       const parsedBadHabits = JSON.parse(savedBadHabits);
       setBadHabits(parsedBadHabits);
-      setBadHabitsAvoided(parsedBadHabits.length);
     }
     
     if (savedRewards) setRewards(JSON.parse(savedRewards));
@@ -137,19 +136,7 @@ const Index = () => {
     
     if (savedStats) {
       const stats = JSON.parse(savedStats);
-      setTasksCompleted(stats.tasksCompleted || 0);
-      if (stats.badHabitsAvoided !== undefined) {
-        setBadHabitsAvoided(stats.badHabitsAvoided);
-      } else if (savedBadHabits) {
-        setBadHabitsAvoided(JSON.parse(savedBadHabits).length);
-      }
       setRewardsClaimed(stats.rewardsClaimed || 0);
-    } else {
-      if (savedBadHabits) {
-        setBadHabitsAvoided(JSON.parse(savedBadHabits).length);
-      } else {
-        setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
-      }
     }
     
     if (savedStreaks) {
@@ -175,31 +162,31 @@ const Index = () => {
     
     const today = startOfDay(new Date()).toISOString();
     if (lastLoginDate !== today) {
+      // Reset for a new day
       const currentLevel = calculateLevel(savedPoints ? JSON.parse(savedPoints) : 50)[0];
       setStartOfDayLevel(currentLevel);
       setDailyXPEarned(0);
       
       localStorage.setItem('lastLoginDate', today);
       
+      // Reset all "avoided" count to total bad habits
       if (savedBadHabits) {
-        setBadHabitsAvoided(JSON.parse(savedBadHabits).length);
+        const parsedBadHabits = JSON.parse(savedBadHabits);
+        // Reset bad habits avoided to the total count of bad habits
+        setBadHabits(parsedBadHabits);
       } else {
-        setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
+        setBadHabits(INITIAL_BAD_HABITS);
       }
       
+      // Reset rewards to unclaimed
       if (savedRewards) {
         try {
           const parsedRewards = JSON.parse(savedRewards);
           const renewedRewards = parsedRewards.map((reward: Reward) => {
-            if (reward.claimed && reward.lastClaimed) {
-              const claimDate = parseISO(reward.lastClaimed);
-              if (!isSameDay(claimDate, new Date())) {
-                return { ...reward, claimed: false };
-              }
-            }
-            return reward;
+            return { ...reward, claimed: false };
           });
           setRewards(renewedRewards);
+          setRewardsClaimed(0); // Reset claimed rewards counter
           toast.success("Your rewards have been renewed for a new day!", {
             duration: 3000,
           });
@@ -226,8 +213,6 @@ const Index = () => {
     localStorage.setItem('points', JSON.stringify(points));
     
     localStorage.setItem('stats', JSON.stringify({
-      tasksCompleted,
-      badHabitsAvoided,
       rewardsClaimed
     }));
     
@@ -235,7 +220,7 @@ const Index = () => {
     
     localStorage.setItem('startOfDayLevel', JSON.stringify(startOfDayLevel));
     localStorage.setItem('dailyXPEarned', JSON.stringify(dailyXPEarned));
-  }, [tasks, badHabits, rewards, points, tasksCompleted, badHabitsAvoided, rewardsClaimed, dailyStreaks, startOfDayLevel, dailyXPEarned]);
+  }, [tasks, badHabits, rewards, points, dailyStreaks, startOfDayLevel, dailyXPEarned, rewardsClaimed]);
   
   useEffect(() => {
     const updateTodayStreak = () => {
@@ -327,7 +312,6 @@ const Index = () => {
     const pointsAdded = addPoints(task.points);
     
     if (pointsAdded) {
-      setTasksCompleted((prev) => prev + 1);
       setTodayPoints((prev) => prev + pointsAdded);
       setTodayTasksCompleted((prev) => prev + 1);
       
@@ -341,20 +325,17 @@ const Index = () => {
   };
   
   const handleDeleteTask = (id: string) => {
-    const taskToDelete = tasks.find(task => task.id === id);
-    
-    // If deleting a completed task, decrement the completed counter
-    if (taskToDelete && taskToDelete.completed) {
-      setTasksCompleted(prev => Math.max(0, prev - 1));
-      setTodayTasksCompleted(prev => Math.max(0, prev - 1));
-    }
-    
     setTasks(tasks.filter((task) => task.id !== id));
+  };
+  
+  const handleEditTask = (editedTask: Task) => {
+    setTasks(tasks.map(task => 
+      task.id === editedTask.id ? editedTask : task
+    ));
   };
   
   const handleAddBadHabit = (badHabit: BadHabit) => {
     setBadHabits([...badHabits, badHabit]);
-    setBadHabitsAvoided(prev => prev + 1);
   };
   
   const handleTriggerBadHabit = (id: string) => {
@@ -363,18 +344,10 @@ const Index = () => {
     
     setPoints((prev) => Math.max(0, prev - badHabit.points));
     setTodayPoints((prev) => Math.max(0, prev - badHabit.points));
-    
-    setBadHabitsAvoided(prev => Math.max(0, prev - 1));
   };
   
   const handleDeleteBadHabit = (id: string) => {
-    const habitsTriggered = badHabits.length - badHabitsAvoided;
-    
     setBadHabits(badHabits.filter((habit) => habit.id !== id));
-    
-    if (badHabitsAvoided > badHabits.length - 1) {
-      setBadHabitsAvoided(prev => Math.max(0, prev - 1));
-    }
   };
   
   const handleAddReward = (reward: Reward) => {
@@ -386,10 +359,10 @@ const Index = () => {
     if (!reward || points < reward.points) return;
     
     setPoints((prev) => prev - reward.points);
+    setRewardsClaimed((prev) => prev + 1);
     
     setRewards(rewards.map((r) => {
       if (r.id === id) {
-        setRewardsClaimed((prev) => prev + 1);
         return { 
           ...r, 
           claimed: true,
@@ -430,6 +403,7 @@ const Index = () => {
             onAddTask={handleAddTask}
             onCompleteTask={handleCompleteTask}
             onDeleteTask={handleDeleteTask}
+            onEditTask={handleEditTask}
           />
         );
       case 'bad-habits':
