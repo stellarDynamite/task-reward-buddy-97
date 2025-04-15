@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { CircleUser, Trophy, Star, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

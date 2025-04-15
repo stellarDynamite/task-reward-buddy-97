@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Task } from '@/components/TaskList';
 import { BadHabit } from '@/components/BadHabitList';
@@ -341,6 +342,14 @@ const Index = () => {
   };
   
   const handleDeleteTask = (id: string) => {
+    const taskToDelete = tasks.find(task => task.id === id);
+    
+    // If deleting a completed task, decrement the completed counter
+    if (taskToDelete && taskToDelete.completed) {
+      setTasksCompleted(prev => Math.max(0, prev - 1));
+      setTodayTasksCompleted(prev => Math.max(0, prev - 1));
+    }
+    
     setTasks(tasks.filter((task) => task.id !== id));
   };
   
@@ -364,7 +373,7 @@ const Index = () => {
     
     setBadHabits(badHabits.filter((habit) => habit.id !== id));
     
-    if (habitsTriggered > 0) {
+    if (badHabitsAvoided > badHabits.length - 1) {
       setBadHabitsAvoided(prev => Math.max(0, prev - 1));
     }
   };
