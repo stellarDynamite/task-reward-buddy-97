@@ -87,9 +87,9 @@ const Index = () => {
   const [points, setPoints] = useState(50);
   const [activeTab, setActiveTab] = useState<TabValue>('dashboard');
   
-  // Stats - we'll now compute these directly from the state instead of tracking separately
+  // Stats - explicitly track these separately
   const tasksCompleted = tasks.filter(task => task.completed).length;
-  const badHabitsAvoided = badHabits.length; // We'll reset this daily
+  const [badHabitsAvoided, setBadHabitsAvoided] = useState(badHabits.length); // Track this directly
   const [rewardsClaimed, setRewardsClaimed] = useState(0);
   
   // Daily Streak tracking
@@ -135,8 +135,13 @@ const Index = () => {
     if (savedPoints) setPoints(JSON.parse(savedPoints));
     
     if (savedStats) {
-      const stats = JSON.parse(savedStats);
-      setRewardsClaimed(stats.rewardsClaimed || 0);
+      try {
+        const stats = JSON.parse(savedStats);
+        setRewardsClaimed(stats.rewardsClaimed || 0);
+        setBadHabitsAvoided(stats.badHabitsAvoided || badHabits.length);
+      } catch (e) {
+        console.error("Error parsing stats:", e);
+      }
     }
     
     if (savedStreaks) {
@@ -174,8 +179,10 @@ const Index = () => {
         const parsedBadHabits = JSON.parse(savedBadHabits);
         // Reset bad habits avoided to the total count of bad habits
         setBadHabits(parsedBadHabits);
+        setBadHabitsAvoided(parsedBadHabits.length); // Reset the avoided count to full
       } else {
         setBadHabits(INITIAL_BAD_HABITS);
+        setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
       }
       
       // Reset rewards to unclaimed
@@ -213,14 +220,15 @@ const Index = () => {
     localStorage.setItem('points', JSON.stringify(points));
     
     localStorage.setItem('stats', JSON.stringify({
-      rewardsClaimed
+      rewardsClaimed,
+      badHabitsAvoided
     }));
     
     localStorage.setItem('dailyStreaks', JSON.stringify(dailyStreaks));
     
     localStorage.setItem('startOfDayLevel', JSON.stringify(startOfDayLevel));
     localStorage.setItem('dailyXPEarned', JSON.stringify(dailyXPEarned));
-  }, [tasks, badHabits, rewards, points, dailyStreaks, startOfDayLevel, dailyXPEarned, rewardsClaimed]);
+  }, [tasks, badHabits, rewards, points, dailyStreaks, startOfDayLevel, dailyXPEarned, rewardsClaimed, badHabitsAvoided]);
   
   useEffect(() => {
     const updateTodayStreak = () => {
@@ -336,6 +344,7 @@ const Index = () => {
   
   const handleAddBadHabit = (badHabit: BadHabit) => {
     setBadHabits([...badHabits, badHabit]);
+    setBadHabitsAvoided(prev => prev + 1); // Increment avoided count when adding a new bad habit
   };
   
   const handleTriggerBadHabit = (id: string) => {
@@ -344,10 +353,12 @@ const Index = () => {
     
     setPoints((prev) => Math.max(0, prev - badHabit.points));
     setTodayPoints((prev) => Math.max(0, prev - badHabit.points));
+    setBadHabitsAvoided(prev => Math.max(0, prev - 1)); // Decrement avoided count when triggered
   };
   
   const handleDeleteBadHabit = (id: string) => {
     setBadHabits(badHabits.filter((habit) => habit.id !== id));
+    setBadHabitsAvoided(prev => Math.max(0, prev - 1)); // Decrement avoided count when deleted
   };
   
   const handleAddReward = (reward: Reward) => {
@@ -356,10 +367,10 @@ const Index = () => {
   
   const handleClaimReward = (id: string) => {
     const reward = rewards.find((r) => r.id === id);
-    if (!reward || points < reward.points) return;
+    if (!reward || points < reward.points || reward.claimed) return;
     
     setPoints((prev) => prev - reward.points);
-    setRewardsClaimed((prev) => prev + 1);
+    setRewardsClaimed((prev) => prev + 1); // This was working but we need to update the rewards list
     
     setRewards(rewards.map((r) => {
       if (r.id === id) {
@@ -374,7 +385,13 @@ const Index = () => {
   };
   
   const handleDeleteReward = (id: string) => {
+    const reward = rewards.find(r => r.id === id);
     setRewards(rewards.filter((reward) => reward.id !== id));
+    
+    // If we're deleting a claimed reward, decrement the counter
+    if (reward && reward.claimed) {
+      setRewardsClaimed(prev => Math.max(0, prev - 1));
+    }
   };
   
   const renderTabContent = () => {

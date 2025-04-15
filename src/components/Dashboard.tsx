@@ -112,7 +112,7 @@ const Dashboard = ({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{badHabitsAvoided}</div>
+            <div className="text-3xl font-bold">{badHabitsAvoided} / {totalBadHabits}</div>
           </CardContent>
         </Card>
         
