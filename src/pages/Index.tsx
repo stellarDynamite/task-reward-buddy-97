@@ -194,6 +194,17 @@ const Index = () => {
           });
           setRewards(renewedRewards);
           setRewardsClaimed(0); // Reset claimed rewards counter
+          
+          // Update local storage with the reset rewards
+          localStorage.setItem('rewards', JSON.stringify(renewedRewards));
+          
+          // Update stats in localStorage to reflect reset reward count
+          const updatedStats = { 
+            rewardsClaimed: 0,
+            badHabitsAvoided: parsedBadHabits ? JSON.parse(savedBadHabits).length : INITIAL_BAD_HABITS.length
+          };
+          localStorage.setItem('stats', JSON.stringify(updatedStats));
+          
           toast.success("Your rewards have been renewed for a new day!", {
             duration: 3000,
           });
