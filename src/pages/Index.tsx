@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Task } from '@/components/TaskList';
 import { BadHabit } from '@/components/BadHabitList';
