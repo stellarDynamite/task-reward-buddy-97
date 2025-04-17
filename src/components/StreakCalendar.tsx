@@ -58,7 +58,7 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
 
     // Get best day of the week
     const weekStreaks = weekDays.map(day => {
-      const streak = dailyStreaks.find(s => isSameDay(s.date, day));
+      const streak = dailyStreaks.find(s => s.date instanceof Date && isSameDay(s.date, day));
       return { day, points: streak?.points || 0, tasksCompleted: streak?.tasksCompleted || 0 };
     });
     
@@ -87,7 +87,7 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
         
         <div className="grid grid-cols-7 gap-2">
           {weekDays.map((day, index) => {
-            const streak = dailyStreaks.find(s => isSameDay(s.date, day));
+            const streak = dailyStreaks.find(s => s.date instanceof Date && isSameDay(s.date, day));
             const hasStreak = streak !== undefined;
             const isToday = isSameDay(day, new Date());
             
@@ -159,7 +159,7 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
 
     // Get top 3 days and monthly totals
     const monthStreaks = monthDays.map(day => {
-      const streak = dailyStreaks.find(s => isSameDay(s.date, day));
+      const streak = dailyStreaks.find(s => s.date instanceof Date && isSameDay(s.date, day));
       return { day, points: streak?.points || 0, tasksCompleted: streak?.tasksCompleted || 0 };
     });
     
@@ -203,7 +203,7 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
           
           {/* Month days */}
           {monthDays.map((day, i) => {
-            const streak = dailyStreaks.find(s => isSameDay(s.date, day));
+            const streak = dailyStreaks.find(s => s.date instanceof Date && isSameDay(s.date, day));
             const hasStreak = streak !== undefined;
             const isToday = isSameDay(day, new Date());
             const intensity = hasStreak ? Math.min(100, streak.points * 2) : 0;

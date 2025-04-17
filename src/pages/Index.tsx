@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Task } from '@/components/TaskList';
 import { BadHabit } from '@/components/BadHabitList';
@@ -201,7 +202,7 @@ const Index = () => {
           // Update stats in localStorage to reflect reset reward count
           const updatedStats = { 
             rewardsClaimed: 0,
-            badHabitsAvoided: parsedBadHabits ? JSON.parse(savedBadHabits).length : INITIAL_BAD_HABITS.length
+            badHabitsAvoided: savedBadHabits ? JSON.parse(savedBadHabits).length : INITIAL_BAD_HABITS.length
           };
           localStorage.setItem('stats', JSON.stringify(updatedStats));
           
