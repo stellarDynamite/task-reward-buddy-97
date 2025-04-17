@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Check, Plus, Trash2, Clock, Calendar, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,7 +23,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { format, setHours, setMinutes, parseISO, startOfDay, isSameDay } from 'date-fns';
+import { format, setHours, setMinutes, parseISO, startOfDay, isSameDay, isToday, addHours, differenceInHours, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
 import CelebrationEffects from './CelebrationEffects';
 
@@ -41,6 +42,35 @@ interface TaskListProps {
   onDeleteTask: (id: string) => void;
   onEditTask?: (task: Task) => void;
 }
+
+// Added utility functions for deadlines
+const formatDeadline = (deadline?: Date | string): string => {
+  if (!deadline) return '';
+  
+  const dateObj = deadline instanceof Date ? deadline : parseISO(deadline);
+  
+  if (isToday(dateObj)) {
+    return `Today at ${format(dateObj, 'h:mm a')}`;
+  }
+  return format(dateObj, 'MMM d, h:mm a');
+};
+
+const isDeadlineSoon = (deadline?: Date | string): boolean => {
+  if (!deadline) return false;
+  
+  const dateObj = deadline instanceof Date ? deadline : parseISO(deadline);
+  const hoursDiff = differenceInHours(dateObj, new Date());
+  
+  // Deadline is within the next 24 hours but not past
+  return hoursDiff > 0 && hoursDiff <= 24;
+};
+
+const isDeadlinePassed = (deadline?: Date | string): boolean => {
+  if (!deadline) return false;
+  
+  const dateObj = deadline instanceof Date ? deadline : parseISO(deadline);
+  return isPast(dateObj);
+};
 
 const TaskList = ({ 
   tasks, 
