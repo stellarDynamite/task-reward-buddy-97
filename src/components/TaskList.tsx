@@ -22,8 +22,9 @@ import {
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { format, setHours, setMinutes, parseISO } from 'date-fns';
+import { format, setHours, setMinutes, parseISO, startOfDay, isSameDay } from 'date-fns';
 import { cn } from '@/lib/utils';
+import CelebrationEffects from './CelebrationEffects';
 
 export interface Task {
   id: string;
@@ -58,6 +59,36 @@ const TaskList = ({
   
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  
+  // Add state for celebration effects
+  const [confettiTrigger, setConfettiTrigger] = useState(0);
+  const [showBalloons, setShowBalloons] = useState(false);
+  const [showRainbow, setShowRainbow] = useState(false);
+  
+  // Calculate how many tasks have been completed today
+  const todayTasksCompletedCount = (() => {
+    const today = startOfDay(new Date());
+    // Get completed tasks from localStorage - assume they're stored in dailyStreaks
+    try {
+      const savedStreaks = localStorage.getItem('dailyStreaks');
+      if (savedStreaks) {
+        const streaks = JSON.parse(savedStreaks);
+        const todayStreak = streaks.find((s: any) => {
+          return s.date && (
+            (s.date instanceof Date && isSameDay(s.date, today)) || 
+            (typeof s.date === 'string' && isSameDay(parseISO(s.date), today))
+          );
+        });
+        
+        if (todayStreak) {
+          return todayStreak.tasksCompleted || 0;
+        }
+      }
+    } catch (e) {
+      console.error("Error checking today's tasks:", e);
+    }
+    return 0;
+  })();
   
   const ensureDate = (deadline?: Date | string): Date | undefined => {
     if (!deadline) return undefined;
@@ -241,70 +272,33 @@ const TaskList = ({
     if (task) {
       toast.success(`Task completed! +${task.points} points`);
       
-      for (let i = 0; i < 20; i++) {
-        createConfetti();
-      }
-    }
-  };
-  
-  const createConfetti = () => {
-    const colors = ['bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-pink-500', 'bg-purple-500'];
-    const confetti = document.createElement('div');
-    confetti.classList.add('confetti', colors[Math.floor(Math.random() * colors.length)]);
-    confetti.style.left = Math.random() * 100 + 'vw';
-    confetti.style.animationDuration = Math.random() * 3 + 2 + 's';
-    document.body.appendChild(confetti);
-    
-    setTimeout(() => {
-      confetti.remove();
-    }, 5000);
-  };
-
-  const isDeadlineSoon = (deadline?: Date | string): boolean => {
-    const dateObject = ensureDate(deadline);
-    if (!dateObject) return false;
-    
-    try {
-      const now = new Date();
-      const timeLeft = dateObject.getTime() - now.getTime();
-      const hoursLeft = timeLeft / (1000 * 60 * 60);
+      // Trigger confetti
+      setConfettiTrigger(prev => prev + 1);
       
-      return hoursLeft > 0 && hoursLeft < 24;
-    } catch (error) {
-      console.error("Error checking deadline:", error);
-      return false;
-    }
-  };
-
-  const isDeadlinePassed = (deadline?: Date | string): boolean => {
-    const dateObject = ensureDate(deadline);
-    if (!dateObject) return false;
-    
-    try {
-      return new Date() > dateObject;
-    } catch (error) {
-      console.error("Error checking if deadline passed:", error);
-      return false;
-    }
-  };
-
-  const formatDeadline = (deadline: Date | string): string => {
-    const dateObject = ensureDate(deadline);
-    if (!dateObject) {
-      console.error("Invalid deadline format:", deadline);
-      return "Invalid date";
-    }
-    
-    try {
-      return format(dateObject, "PPP 'at' h:mm a");
-    } catch (error) {
-      console.error("Error formatting deadline:", error);
-      return "Invalid date";
+      // Calculate tasks completed today AFTER this completion
+      const newTaskCount = todayTasksCompletedCount + 1;
+      
+      // Show balloons if we've completed 3+ tasks
+      if (newTaskCount >= 3) {
+        setShowBalloons(true);
+        
+        // Show rainbow if we've completed 4+ tasks
+        if (newTaskCount >= 4) {
+          setShowRainbow(true);
+        }
+      }
     }
   };
 
   return (
     <div className="space-y-4">
+      {/* Add CelebrationEffects component */}
+      <CelebrationEffects 
+        confettiCount={confettiTrigger} 
+        showBalloons={showBalloons} 
+        showRainbow={showRainbow} 
+      />
+      
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Tasks</h2>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
