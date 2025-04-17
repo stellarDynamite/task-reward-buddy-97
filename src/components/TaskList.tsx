@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Check, Plus, Trash2, Clock, Calendar, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -43,7 +42,6 @@ interface TaskListProps {
   onEditTask?: (task: Task) => void;
 }
 
-// Added utility functions for deadlines
 const formatDeadline = (deadline?: Date | string): string => {
   if (!deadline) return '';
   
@@ -61,7 +59,6 @@ const isDeadlineSoon = (deadline?: Date | string): boolean => {
   const dateObj = deadline instanceof Date ? deadline : parseISO(deadline);
   const hoursDiff = differenceInHours(dateObj, new Date());
   
-  // Deadline is within the next 24 hours but not past
   return hoursDiff > 0 && hoursDiff <= 24;
 };
 
@@ -90,15 +87,12 @@ const TaskList = ({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   
-  // Add state for celebration effects
   const [confettiTrigger, setConfettiTrigger] = useState(0);
   const [showBalloons, setShowBalloons] = useState(false);
   const [showRainbow, setShowRainbow] = useState(false);
   
-  // Calculate how many tasks have been completed today
   const todayTasksCompletedCount = (() => {
     const today = startOfDay(new Date());
-    // Get completed tasks from localStorage - assume they're stored in dailyStreaks
     try {
       const savedStreaks = localStorage.getItem('dailyStreaks');
       if (savedStreaks) {
@@ -302,17 +296,13 @@ const TaskList = ({
     if (task) {
       toast.success(`Task completed! +${task.points} points`);
       
-      // Trigger confetti
       setConfettiTrigger(prev => prev + 1);
       
-      // Calculate tasks completed today AFTER this completion
       const newTaskCount = todayTasksCompletedCount + 1;
       
-      // Show balloons if we've completed 3+ tasks
       if (newTaskCount >= 3) {
         setShowBalloons(true);
         
-        // Show rainbow if we've completed 4+ tasks
         if (newTaskCount >= 4) {
           setShowRainbow(true);
         }
@@ -322,7 +312,6 @@ const TaskList = ({
 
   return (
     <div className="space-y-4">
-      {/* Add CelebrationEffects component */}
       <CelebrationEffects 
         confettiCount={confettiTrigger} 
         showBalloons={showBalloons} 
@@ -635,6 +624,7 @@ const TaskList = ({
                     variant="ghost"
                     size="icon"
                     onClick={() => startEditTask(task)}
+                    title="Edit task"
                     className="text-muted-foreground hover:text-primary"
                   >
                     <Edit className="h-4 w-4" />
