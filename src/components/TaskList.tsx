@@ -73,7 +73,7 @@ const TaskList = ({
   tasks, 
   onAddTask, 
   onCompleteTask, 
-  onDeleteTask, 
+  onDeleteTask,
   onEditTask 
 }: TaskListProps) => {
   const [newTaskTitle, setNewTaskTitle] = useState('');
