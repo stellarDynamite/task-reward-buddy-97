@@ -63,17 +63,20 @@ const getPointsNeededForLevel = (level: number): number => {
   return Math.floor(100 * Math.pow(1.5, level - 1));
 };
 
-// Calculate current level based on total points
-const calculateLevel = (points: number): [number, number, number] => {
-  let level = 1;
+// Calculate current level based on total points, but never decrease
+const calculateLevel = (points: number, startOfDayLevel: number): [number, number, number] => {
+  let level = startOfDayLevel;
   let totalPointsNeeded = getPointsNeededForLevel(level);
+  let previousLevelPoints = 0;
   
+  // Only increase level if points exceed the next threshold
   while (points >= totalPointsNeeded) {
     level++;
+    previousLevelPoints = totalPointsNeeded;
     totalPointsNeeded += getPointsNeededForLevel(level);
   }
   
-  const previousLevelPoints = totalPointsNeeded - getPointsNeededForLevel(level);
+  // Points progress within current level
   const pointsInCurrentLevel = points - previousLevelPoints;
   const pointsNeededForNextLevel = getPointsNeededForLevel(level);
   
@@ -101,8 +104,8 @@ const Index = () => {
   const [startOfDayLevel, setStartOfDayLevel] = useState(1);
   const [dailyXPEarned, setDailyXPEarned] = useState(0);
   
-  // Calculate level information
-  const [level, pointsToNextLevel, pointsNeededForNextLevel] = calculateLevel(points);
+  // Calculate level information with floor at startOfDayLevel
+  const [level, pointsToNextLevel, pointsNeededForNextLevel] = calculateLevel(points, startOfDayLevel);
   
   // Load data from localStorage on initial render
   useEffect(() => {
@@ -272,7 +275,7 @@ const Index = () => {
   }, [dailyXPEarned, todayTasksCompleted]); // Update when dailyXPEarned changes
   
   useEffect(() => {
-    const [newLevel] = calculateLevel(points);
+    const [newLevel] = calculateLevel(points, startOfDayLevel);
     const prevLevel = localStorage.getItem('userLevel');
     
     if (prevLevel && parseInt(prevLevel) < newLevel) {
