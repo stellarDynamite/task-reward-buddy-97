@@ -244,29 +244,32 @@ const Index = () => {
   useEffect(() => {
     const updateTodayStreak = () => {
       const today = startOfDay(new Date());
+      
+      // Find today's streak if it exists
       const todayStreakIndex = dailyStreaks.findIndex(streak => 
         streak.date instanceof Date && isSameDay(streak.date, today)
       );
-      
+
+      // Calculate points earned today (dailyXPEarned)
       if (todayStreakIndex >= 0) {
         const updatedStreaks = [...dailyStreaks];
         updatedStreaks[todayStreakIndex] = {
           date: today,
-          points: todayPoints,
+          points: dailyXPEarned, // Use dailyXPEarned instead of todayPoints
           tasksCompleted: todayTasksCompleted
         };
         setDailyStreaks(updatedStreaks);
       } else {
         setDailyStreaks([...dailyStreaks, {
           date: today,
-          points: todayPoints,
+          points: dailyXPEarned, // Use dailyXPEarned for new day
           tasksCompleted: todayTasksCompleted
         }]);
       }
     };
     
     updateTodayStreak();
-  }, [todayPoints, todayTasksCompleted]);
+  }, [dailyXPEarned, todayTasksCompleted]); // Update when dailyXPEarned changes
   
   useEffect(() => {
     const [newLevel] = calculateLevel(points);
