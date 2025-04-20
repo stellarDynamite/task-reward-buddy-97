@@ -171,7 +171,7 @@ const Index = () => {
     const today = startOfDay(new Date()).toISOString();
     if (lastLoginDate !== today) {
       // Reset for a new day
-      const currentLevel = calculateLevel(savedPoints ? JSON.parse(savedPoints) : 50)[0];
+      const currentLevel = calculateLevel(savedPoints ? JSON.parse(savedPoints) : 50, startOfDayLevel)[0];
       setStartOfDayLevel(currentLevel);
       setDailyXPEarned(0);
       
