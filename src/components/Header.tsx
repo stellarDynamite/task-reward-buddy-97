@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, CheckCheck, Ban, Star, Info, Mail, Github, LogOut } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
 
 export type TabValue = 'dashboard' | 'tasks' | 'bad-habits' | 'rewards';
 
@@ -15,32 +15,8 @@ interface HeaderProps {
 }
 
 const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
-  const [user, setUser] = useState(supabase.auth.getUser()?.data.user || null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    // Set up auth state listener
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const currentUser = session?.user || null;
-      setUser(currentUser);
-      
-      if (event === 'SIGNED_IN') {
-        toast({
-          title: "Signed in!",
-          description: "Your progress will now be saved to the cloud.",
-        });
-      } else if (event === 'SIGNED_OUT') {
-        toast({
-          title: "Signed out",
-          description: "You've been logged out successfully.",
-        });
-      }
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
+  const { user, loading } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
 
   // Info icon click handler
   const handleInfoClick = () => {
@@ -58,7 +34,7 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
   // Auth button click handlers
   const handleGoogleLogin = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -75,13 +51,13 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   const handleDiscordLogin = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'discord',
         options: {
@@ -98,13 +74,13 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   const handleLogout = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
       await supabase.auth.signOut();
     } catch (error) {
       console.error('Error signing out:', error);
@@ -114,7 +90,7 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -138,7 +114,7 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
             <>
               <Button 
                 onClick={handleGoogleLogin}
-                disabled={loading}
+                disabled={loading || isLoading}
                 className="flex items-center gap-1 bg-[#E5DEFF] hover:bg-[#d0c5ff] text-[#6E41E2] px-3 py-1.5 rounded-full text-sm font-semibold transition-colors"
                 size="sm"
                 variant="outline"
@@ -148,7 +124,7 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
               </Button>
               <Button
                 onClick={handleDiscordLogin}
-                disabled={loading}
+                disabled={loading || isLoading}
                 className="flex items-center gap-1 bg-[#D3E4FD] hover:bg-[#b9d4f8] text-[#3E63DD] px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ml-2"
                 size="sm"
                 variant="outline"
@@ -160,7 +136,7 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
           ) : (
             <Button
               onClick={handleLogout}
-              disabled={loading}
+              disabled={isLoading}
               className="flex items-center gap-1 bg-[#FFDEE2] hover:bg-[#ffc5cc] text-[#E54666] px-3 py-1.5 rounded-full text-sm font-semibold transition-colors"
               size="sm"
               variant="outline"
