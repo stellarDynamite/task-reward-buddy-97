@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CircleUser, Trophy, CheckCheck, Ban, Star, Info, Gmail, Discord } from 'lucide-react';
+import { Trophy, CheckCheck, Ban, Star, Info, Mail, Github } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export type TabValue = 'dashboard' | 'tasks' | 'bad-habits' | 'rewards';
@@ -19,32 +19,32 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
       title: "Important!",
       description: (
         <span>
-          If you clear your browser’s cache/history, your progress will be reset.<br />
-          <strong>To prevent this, please link your Gmail or Discord account!</strong>
+          If you clear your browser's cache/history, your progress will be reset.<br />
+          <strong>To prevent this, please link your email or GitHub account!</strong>
         </span>
       ),
     });
   };
 
-  // Gmail/Discord button click handlers
-  const handleGmailClick = () => {
+  // Email/GitHub button click handlers
+  const handleEmailClick = () => {
     toast({
       title: "Coming soon!",
       description: (
         <span>
-          Linking your Gmail will let you save your progress even if your browser data is cleared.<br />
+          Linking your email will let you save your progress even if your browser data is cleared.<br />
           Feature coming soon!
         </span>
       ),
     });
   };
 
-  const handleDiscordClick = () => {
+  const handleGithubClick = () => {
     toast({
       title: "Coming soon!",
       description: (
         <span>
-          Linking your Discord will let you save your progress even if your browser data is cleared.<br />
+          Linking your GitHub will let you save your progress even if your browser data is cleared.<br />
           Feature coming soon!
         </span>
       ),
@@ -67,20 +67,20 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
             <Info size={22} className="text-theme-purple" />
           </button>
           <button
-            onClick={handleGmailClick}
+            onClick={handleEmailClick}
             className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-full text-sm font-semibold transition-colors"
-            aria-label="Link Gmail"
+            aria-label="Link Email"
           >
-            <Gmail size={18} className="mr-1" />
-            Link Gmail
+            <Mail size={18} className="mr-1" />
+            Link Email
           </button>
           <button
-            onClick={handleDiscordClick}
-            className="flex items-center gap-1 bg-[#5865F2] hover:bg-[#4954c2] text-white px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ml-2"
-            aria-label="Link Discord"
+            onClick={handleGithubClick}
+            className="flex items-center gap-1 bg-[#333333] hover:bg-[#24292e] text-white px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ml-2"
+            aria-label="Link GitHub"
           >
-            <Discord size={18} className="mr-1" />
-            Link Discord
+            <Github size={18} className="mr-1" />
+            Link GitHub
           </button>
         </div>
         <div className="bg-gradient-to-r from-theme-purple to-theme-purple-light text-white px-4 py-2 rounded-full font-medium flex items-center md:ml-auto md:static absolute top-12 right-0 md:top-auto md:right-auto">
