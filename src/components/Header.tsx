@@ -41,10 +41,11 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
       
       if (!hasValidSupabaseCredentials()) {
         toast({
-          title: "Supabase Configuration",
-          description: "Supabase is not properly configured. Please connect to Supabase via the Lovable integration.",
+          title: "Supabase Configuration Required",
+          description: "Please connect to Supabase via the Lovable integration using the green Supabase button on the top right.",
           variant: "destructive"
         });
+        setIsLoading(false);
         return;
       }
       
@@ -61,10 +62,9 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
       setAuthError(error instanceof Error ? error.message : 'Failed to sign in with Google');
       toast({
         title: "Authentication Error",
-        description: "Failed to sign in with Google. Please make sure Supabase is properly connected in your Lovable project.",
+        description: error instanceof Error ? error.message : "Failed to sign in with Google. Please try again.",
         variant: "destructive"
       });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -76,10 +76,11 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
       
       if (!hasValidSupabaseCredentials()) {
         toast({
-          title: "Supabase Configuration",
-          description: "Supabase is not properly configured. Please connect to Supabase via the Lovable integration.",
+          title: "Supabase Configuration Required",
+          description: "Please connect to Supabase via the Lovable integration using the green Supabase button on the top right.",
           variant: "destructive"
         });
+        setIsLoading(false);
         return;
       }
       
@@ -96,10 +97,9 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
       setAuthError(error instanceof Error ? error.message : 'Failed to sign in with Discord');
       toast({
         title: "Authentication Error",
-        description: "Failed to sign in with Discord. Please make sure Supabase is properly connected in your Lovable project.",
+        description: error instanceof Error ? error.message : "Failed to sign in with Discord. Please try again.",
         variant: "destructive"
       });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -157,7 +157,7 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
                 onClick={handleGoogleLogin}
                 disabled={isLoading}
                 type="button"
-                className="flex items-center gap-1 bg-[#E5DEFF] hover:bg-[#d0c5ff] text-[#6E41E2] px-3 py-1.5 rounded-full text-sm font-semibold transition-colors"
+                className="flex items-center gap-1 bg-[#E5DEFF] hover:bg-[#d0c5ff] text-[#6E41E2] px-3 py-1.5 rounded-full text-sm font-semibold transition-colors cursor-pointer"
                 size="sm"
                 variant="outline"
               >
@@ -168,7 +168,7 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
                 onClick={handleDiscordLogin}
                 disabled={isLoading}
                 type="button"
-                className="flex items-center gap-1 bg-[#D3E4FD] hover:bg-[#b9d4f8] text-[#3E63DD] px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ml-2"
+                className="flex items-center gap-1 bg-[#D3E4FD] hover:bg-[#b9d4f8] text-[#3E63DD] px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ml-2 cursor-pointer"
                 size="sm"
                 variant="outline"
               >
@@ -181,7 +181,7 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
               onClick={handleLogout}
               disabled={isLoading}
               type="button"
-              className="flex items-center gap-1 bg-[#FFDEE2] hover:bg-[#ffc5cc] text-[#E54666] px-3 py-1.5 rounded-full text-sm font-semibold transition-colors"
+              className="flex items-center gap-1 bg-[#FFDEE2] hover:bg-[#ffc5cc] text-[#E54666] px-3 py-1.5 rounded-full text-sm font-semibold transition-colors cursor-pointer"
               size="sm"
               variant="outline"
             >
