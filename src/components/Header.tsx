@@ -40,7 +40,12 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
       setAuthError(null);
       
       if (!hasValidSupabaseCredentials()) {
-        throw new Error('Supabase is not properly configured. Please connect to Supabase via the Lovable integration.');
+        toast({
+          title: "Supabase Configuration",
+          description: "Supabase is not properly configured. Please connect to Supabase via the Lovable integration.",
+          variant: "destructive"
+        });
+        return;
       }
       
       const { error } = await supabase.auth.signInWithOAuth({
@@ -70,7 +75,12 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
       setAuthError(null);
       
       if (!hasValidSupabaseCredentials()) {
-        throw new Error('Supabase is not properly configured. Please connect to Supabase via the Lovable integration.');
+        toast({
+          title: "Supabase Configuration",
+          description: "Supabase is not properly configured. Please connect to Supabase via the Lovable integration.",
+          variant: "destructive"
+        });
+        return;
       }
       
       const { error } = await supabase.auth.signInWithOAuth({
@@ -123,13 +133,6 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
     }
   }, [authError]);
 
-  // Check for Supabase configuration on component mount
-  useEffect(() => {
-    if (!hasValidSupabaseCredentials()) {
-      console.warn('Supabase is not properly configured. Authentication features will not work correctly.');
-    }
-  }, []);
-
   return (
     <header className="w-full mb-8">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 relative">
@@ -152,7 +155,8 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
             <>
               <Button 
                 onClick={handleGoogleLogin}
-                disabled={loading || isLoading || !hasValidSupabaseCredentials()}
+                disabled={isLoading}
+                type="button"
                 className="flex items-center gap-1 bg-[#E5DEFF] hover:bg-[#d0c5ff] text-[#6E41E2] px-3 py-1.5 rounded-full text-sm font-semibold transition-colors"
                 size="sm"
                 variant="outline"
@@ -162,7 +166,8 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
               </Button>
               <Button
                 onClick={handleDiscordLogin}
-                disabled={loading || isLoading || !hasValidSupabaseCredentials()}
+                disabled={isLoading}
+                type="button"
                 className="flex items-center gap-1 bg-[#D3E4FD] hover:bg-[#b9d4f8] text-[#3E63DD] px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ml-2"
                 size="sm"
                 variant="outline"
@@ -175,6 +180,7 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
             <Button
               onClick={handleLogout}
               disabled={isLoading}
+              type="button"
               className="flex items-center gap-1 bg-[#FFDEE2] hover:bg-[#ffc5cc] text-[#E54666] px-3 py-1.5 rounded-full text-sm font-semibold transition-colors"
               size="sm"
               variant="outline"

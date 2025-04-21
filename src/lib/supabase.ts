@@ -17,7 +17,13 @@ if (supabaseUrl === FALLBACK_URL || supabaseAnonKey === FALLBACK_KEY) {
 }
 
 // Initialize Supabase client with more robust error handling
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+});
 
 // Helper function to check if user is authenticated
 export const isAuthenticated = async () => {

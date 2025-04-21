@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, hasValidSupabaseCredentials } from '@/lib/supabase';
 import { User, Session } from '@supabase/supabase-js';
 
 export function useAuth() {
@@ -10,6 +10,12 @@ export function useAuth() {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    // Skip authentication if Supabase is not properly configured
+    if (!hasValidSupabaseCredentials()) {
+      setLoading(false);
+      return;
+    }
+    
     // Get current session and user
     const getInitialSession = async () => {
       try {
@@ -46,7 +52,9 @@ export function useAuth() {
     );
 
     return () => {
-      authListener.subscription.unsubscribe();
+      if (authListener && authListener.subscription) {
+        authListener.subscription.unsubscribe();
+      }
     };
   }, []);
 
