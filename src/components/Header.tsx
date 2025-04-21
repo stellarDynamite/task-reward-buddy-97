@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, CheckCheck, Ban, Star, Info, Mail, Github, LogOut } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase';
+import { supabase, hasValidSupabaseCredentials } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -38,6 +38,11 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
     try {
       setIsLoading(true);
       setAuthError(null);
+      
+      if (!hasValidSupabaseCredentials()) {
+        throw new Error('Supabase is not properly configured. Please connect to Supabase via the Lovable integration.');
+      }
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -48,10 +53,10 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
       if (error) throw error;
     } catch (error) {
       console.error('Error signing in with Google:', error);
-      setAuthError('Failed to sign in with Google');
+      setAuthError(error instanceof Error ? error.message : 'Failed to sign in with Google');
       toast({
-        title: "Error",
-        description: "Failed to sign in with Google. Please try again.",
+        title: "Authentication Error",
+        description: "Failed to sign in with Google. Please make sure Supabase is properly connected in your Lovable project.",
         variant: "destructive"
       });
     } finally {
@@ -63,6 +68,11 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
     try {
       setIsLoading(true);
       setAuthError(null);
+      
+      if (!hasValidSupabaseCredentials()) {
+        throw new Error('Supabase is not properly configured. Please connect to Supabase via the Lovable integration.');
+      }
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'discord',
         options: {
@@ -73,10 +83,10 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
       if (error) throw error;
     } catch (error) {
       console.error('Error signing in with Discord:', error);
-      setAuthError('Failed to sign in with Discord');
+      setAuthError(error instanceof Error ? error.message : 'Failed to sign in with Discord');
       toast({
-        title: "Error",
-        description: "Failed to sign in with Discord. Please try again.",
+        title: "Authentication Error",
+        description: "Failed to sign in with Discord. Please make sure Supabase is properly connected in your Lovable project.",
         variant: "destructive"
       });
     } finally {
@@ -113,6 +123,13 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
     }
   }, [authError]);
 
+  // Check for Supabase configuration on component mount
+  useEffect(() => {
+    if (!hasValidSupabaseCredentials()) {
+      console.warn('Supabase is not properly configured. Authentication features will not work correctly.');
+    }
+  }, []);
+
   return (
     <header className="w-full mb-8">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6 relative">
@@ -135,23 +152,23 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
             <>
               <Button 
                 onClick={handleGoogleLogin}
-                disabled={loading || isLoading}
+                disabled={loading || isLoading || !hasValidSupabaseCredentials()}
                 className="flex items-center gap-1 bg-[#E5DEFF] hover:bg-[#d0c5ff] text-[#6E41E2] px-3 py-1.5 rounded-full text-sm font-semibold transition-colors"
                 size="sm"
                 variant="outline"
               >
                 <Mail size={18} className="mr-1" />
-                Sign in with Google
+                {!hasValidSupabaseCredentials() ? 'Configure Supabase' : 'Sign in with Google'}
               </Button>
               <Button
                 onClick={handleDiscordLogin}
-                disabled={loading || isLoading}
+                disabled={loading || isLoading || !hasValidSupabaseCredentials()}
                 className="flex items-center gap-1 bg-[#D3E4FD] hover:bg-[#b9d4f8] text-[#3E63DD] px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ml-2"
                 size="sm"
                 variant="outline"
               >
                 <Github size={18} className="mr-1" />
-                Sign in with Discord
+                {!hasValidSupabaseCredentials() ? 'Configure Supabase' : 'Sign in with Discord'}
               </Button>
             </>
           ) : (
