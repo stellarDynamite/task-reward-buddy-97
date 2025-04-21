@@ -7,18 +7,25 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     // Get current session and user
     const getInitialSession = async () => {
       try {
         setLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          throw error;
+        }
+        
         setSession(session);
         setUser(session?.user || null);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error getting initial session:', error);
+      } catch (err) {
+        console.error('Error getting initial session:', err);
+        setError(err instanceof Error ? err : new Error('Unknown error occurred'));
+      } finally {
         setLoading(false);
       }
     };
@@ -27,10 +34,14 @@ export function useAuth() {
     
     // Listen for auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user || null);
-        setLoading(false);
+      async (event, session) => {
+        try {
+          setSession(session);
+          setUser(session?.user || null);
+          setLoading(false);
+        } catch (err) {
+          console.error('Error in auth state change:', err);
+        }
       }
     );
 
@@ -39,5 +50,5 @@ export function useAuth() {
     };
   }, []);
 
-  return { user, session, loading };
+  return { user, session, loading, error };
 }

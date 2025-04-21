@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, CheckCheck, Ban, Star, Info, Mail, Github, LogOut } from 'lucide-react';
@@ -17,6 +18,7 @@ interface HeaderProps {
 const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
   const { user, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Info icon click handler
   const handleInfoClick = () => {
@@ -35,6 +37,7 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
   const handleGoogleLogin = async () => {
     try {
       setIsLoading(true);
+      setAuthError(null);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -45,6 +48,7 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
       if (error) throw error;
     } catch (error) {
       console.error('Error signing in with Google:', error);
+      setAuthError('Failed to sign in with Google');
       toast({
         title: "Error",
         description: "Failed to sign in with Google. Please try again.",
@@ -58,6 +62,7 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
   const handleDiscordLogin = async () => {
     try {
       setIsLoading(true);
+      setAuthError(null);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'discord',
         options: {
@@ -68,6 +73,7 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
       if (error) throw error;
     } catch (error) {
       console.error('Error signing in with Discord:', error);
+      setAuthError('Failed to sign in with Discord');
       toast({
         title: "Error",
         description: "Failed to sign in with Discord. Please try again.",
@@ -81,9 +87,11 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
   const handleLogout = async () => {
     try {
       setIsLoading(true);
+      setAuthError(null);
       await supabase.auth.signOut();
     } catch (error) {
       console.error('Error signing out:', error);
+      setAuthError('Failed to sign out');
       toast({
         title: "Error",
         description: "Failed to sign out. Please try again.",
@@ -93,6 +101,17 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
       setIsLoading(false);
     }
   };
+
+  // Effect to show toast if there's an auth error
+  useEffect(() => {
+    if (authError) {
+      toast({
+        title: "Authentication Error",
+        description: authError,
+        variant: "destructive"
+      });
+    }
+  }, [authError]);
 
   return (
     <header className="w-full mb-8">
@@ -110,7 +129,9 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
             <Info size={22} className="text-theme-purple" />
           </button>
           
-          {!user ? (
+          {loading ? (
+            <div className="text-sm text-muted-foreground">Loading...</div>
+          ) : !user ? (
             <>
               <Button 
                 onClick={handleGoogleLogin}
