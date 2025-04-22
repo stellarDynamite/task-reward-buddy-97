@@ -245,34 +245,30 @@ const Index = () => {
   }, [tasks, badHabits, rewards, points, dailyStreaks, startOfDayLevel, dailyXPEarned, rewardsClaimed, badHabitsAvoided]);
   
   useEffect(() => {
-    const updateTodayStreak = () => {
-      const today = startOfDay(new Date());
-      
-      // Find today's streak if it exists
-      const todayStreakIndex = dailyStreaks.findIndex(streak => 
-        streak.date instanceof Date && isSameDay(streak.date, today)
-      );
-
-      // Update or create today's streak with the current dailyXPEarned and todayTasksCompleted
-      if (todayStreakIndex >= 0) {
-        const updatedStreaks = [...dailyStreaks];
-        updatedStreaks[todayStreakIndex] = {
-          ...updatedStreaks[todayStreakIndex],
-          points: dailyXPEarned,
-          tasksCompleted: todayTasksCompleted
-        };
-        setDailyStreaks(updatedStreaks);
-      } else {
-        setDailyStreaks([...dailyStreaks, {
-          date: today,
-          points: dailyXPEarned,
-          tasksCompleted: todayTasksCompleted
-        }]);
-      }
-    };
+    const today = startOfDay(new Date());
     
-    updateTodayStreak();
-  }, [dailyXPEarned, todayTasksCompleted, dailyStreaks]); // Added dailyStreaks dependency
+    // Find today's streak if it exists
+    const todayStreakIndex = dailyStreaks.findIndex(streak => 
+      streak.date instanceof Date && isSameDay(streak.date, today)
+    );
+
+    // Update or create today's streak with the current dailyXPEarned and todayTasksCompleted
+    if (todayStreakIndex >= 0) {
+      const updatedStreaks = [...dailyStreaks];
+      updatedStreaks[todayStreakIndex] = {
+        ...updatedStreaks[todayStreakIndex],
+        points: dailyXPEarned,
+        tasksCompleted: todayTasksCompleted
+      };
+      setDailyStreaks(updatedStreaks);
+    } else {
+      setDailyStreaks(prev => [...prev, {
+        date: today,
+        points: dailyXPEarned,
+        tasksCompleted: todayTasksCompleted
+      }]);
+    }
+  }, [dailyXPEarned, todayTasksCompleted]);
   
   useEffect(() => {
     const [newLevel] = calculateLevel(points, startOfDayLevel);
