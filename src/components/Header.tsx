@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, CheckCheck, Ban, Star, Info, Mail, Github, LogOut } from 'lucide-react';
@@ -15,31 +14,52 @@ interface HeaderProps {
 }
 
 const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
-  const [user, setUser] = useState(supabase.auth.getUser()?.data.user || null);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [supabaseReady, setSupabaseReady] = useState(false);
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      const currentUser = session?.user || null;
-      setUser(currentUser);
-      
-      if (event === 'SIGNED_IN') {
-        toast({
-          title: "Signed in!",
-          description: "Your progress will now be saved to the cloud.",
-        });
-      } else if (event === 'SIGNED_OUT') {
-        toast({
-          title: "Signed out",
-          description: "You've been logged out successfully.",
-        });
+    // Check if Supabase is properly configured
+    const checkSupabase = async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        setUser(data?.user || null);
+        setSupabaseReady(true);
+      } catch (error) {
+        console.error('Supabase not properly configured:', error);
+        setSupabaseReady(false);
       }
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
     };
+    
+    checkSupabase();
+    
+    // Set up auth state listener if Supabase is ready
+    if (typeof supabase.auth.onAuthStateChange === 'function') {
+      const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+        const currentUser = session?.user || null;
+        setUser(currentUser);
+        
+        if (event === 'SIGNED_IN') {
+          toast({
+            title: "Signed in!",
+            description: "Your progress will now be saved to the cloud.",
+          });
+        } else if (event === 'SIGNED_OUT') {
+          toast({
+            title: "Signed out",
+            description: "You've been logged out successfully.",
+          });
+        }
+      });
+
+      return () => {
+        if (authListener?.subscription?.unsubscribe) {
+          authListener.subscription.unsubscribe();
+        }
+      };
+    }
+    
+    return undefined;
   }, []);
 
   // Info icon click handler
@@ -57,6 +77,15 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
 
   // Auth button click handlers
   const handleGoogleLogin = async () => {
+    if (!supabaseReady) {
+      toast({
+        title: "Error",
+        description: "Authentication is not available. Supabase is not configured.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     try {
       setLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
@@ -80,6 +109,15 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
   };
 
   const handleDiscordLogin = async () => {
+    if (!supabaseReady) {
+      toast({
+        title: "Error",
+        description: "Authentication is not available. Supabase is not configured.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     try {
       setLoading(true);
       const { error } = await supabase.auth.signInWithOAuth({
@@ -103,6 +141,15 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
   };
 
   const handleLogout = async () => {
+    if (!supabaseReady) {
+      toast({
+        title: "Error",
+        description: "Authentication is not available. Supabase is not configured.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     try {
       setLoading(true);
       await supabase.auth.signOut();
@@ -138,7 +185,7 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
             <>
               <Button 
                 onClick={handleGoogleLogin}
-                disabled={loading}
+                disabled={loading || !supabaseReady}
                 className="flex items-center gap-1 bg-[#E5DEFF] hover:bg-[#d0c5ff] text-[#6E41E2] px-3 py-1.5 rounded-full text-sm font-semibold transition-colors"
                 size="sm"
                 variant="outline"
@@ -148,7 +195,7 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
               </Button>
               <Button
                 onClick={handleDiscordLogin}
-                disabled={loading}
+                disabled={loading || !supabaseReady}
                 className="flex items-center gap-1 bg-[#D3E4FD] hover:bg-[#b9d4f8] text-[#3E63DD] px-3 py-1.5 rounded-full text-sm font-semibold transition-colors ml-2"
                 size="sm"
                 variant="outline"

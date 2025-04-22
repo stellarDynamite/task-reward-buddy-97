@@ -25,18 +25,25 @@ export function useAuth() {
     
     getInitialSession();
     
-    // Listen for auth state changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user || null);
-        setLoading(false);
-      }
-    );
+    // Check if Supabase auth methods are available
+    if (typeof supabase.auth.onAuthStateChange === 'function') {
+      // Listen for auth state changes
+      const { data: authListener } = supabase.auth.onAuthStateChange(
+        (event, session) => {
+          setSession(session);
+          setUser(session?.user || null);
+          setLoading(false);
+        }
+      );
 
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
+      return () => {
+        if (authListener?.subscription?.unsubscribe) {
+          authListener.subscription.unsubscribe();
+        }
+      };
+    }
+    
+    return undefined;
   }, []);
 
   return { user, session, loading };
