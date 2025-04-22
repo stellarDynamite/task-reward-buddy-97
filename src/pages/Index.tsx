@@ -244,111 +244,117 @@ const Index = () => {
     localStorage.setItem('dailyXPEarned', JSON.stringify(dailyXPEarned));
   }, [tasks, badHabits, rewards, points, dailyStreaks, startOfDayLevel, dailyXPEarned, rewardsClaimed, badHabitsAvoided]);
   
-  useEffect(() => {
-    const updateTodayStreak = () => {
-      const today = startOfDay(new Date());
-      
-      // Find today's streak if it exists
-      const todayStreakIndex = dailyStreaks.findIndex(streak => 
-        streak.date instanceof Date && isSameDay(streak.date, today)
-      );
-
-      // Calculate points earned today (dailyXPEarned)
-      if (todayStreakIndex >= 0) {
-        const updatedStreaks = [...dailyStreaks];
-        updatedStreaks[todayStreakIndex] = {
-          date: today,
-          points: dailyXPEarned, // Use dailyXPEarned instead of todayPoints
-          tasksCompleted: todayTasksCompleted
+  /**
+   * Utility function: Update or add points/tasks for a specific date in streaks
+   */
+  const updateDailyStreakForDate = (targetDate: Date, addPoints: number, addTasksCompleted: number = 0) => {
+    setDailyStreaks(prevStreaks => {
+      const idx = prevStreaks.findIndex(s => s.date instanceof Date && isSameDay(s.date, targetDate));
+      if (idx >= 0) {
+        // Update existing streak
+        const updated = [...prevStreaks];
+        updated[idx] = {
+          ...updated[idx],
+          points: Math.max(0, updated[idx].points + addPoints),
+          tasksCompleted: Math.max(0, updated[idx].tasksCompleted + addTasksCompleted)
         };
-        setDailyStreaks(updatedStreaks);
+        return updated;
       } else {
-        setDailyStreaks([...dailyStreaks, {
-          date: today,
-          points: dailyXPEarned, // Use dailyXPEarned for new day
-          tasksCompleted: todayTasksCompleted
-        }]);
+        // Add new streak
+        return [
+          ...prevStreaks,
+          {
+            date: targetDate,
+            points: Math.max(0, addPoints),
+            tasksCompleted: Math.max(0, addTasksCompleted)
+          }
+        ];
       }
-    };
-    
-    updateTodayStreak();
-  }, [dailyXPEarned, todayTasksCompleted]); // Update when dailyXPEarned changes
-  
-  useEffect(() => {
-    const [newLevel] = calculateLevel(points, startOfDayLevel);
-    const prevLevel = localStorage.getItem('userLevel');
-    
-    if (prevLevel && parseInt(prevLevel) < newLevel) {
-      if (newLevel - startOfDayLevel > MAX_DAILY_LEVELS) {
-        toast.warning(`You've reached the daily level limit (${MAX_DAILY_LEVELS} levels per day)`, {
-          duration: 5000,
-        });
-        
-        let maxPointsForLevel = 0;
-        let tempLevel = startOfDayLevel;
-        for (let i = 0; i < MAX_DAILY_LEVELS; i++) {
-          maxPointsForLevel += getPointsNeededForLevel(tempLevel);
-          tempLevel++;
-        }
-        
-        setPoints(maxPointsForLevel);
-      } else {
-        toast.success(`Level Up! You've reached level ${newLevel}! 🎉`, {
-          duration: 5000,
-        });
+    });
+  };
+
+  /**
+   * Add points for a given date
+   * - "forDate" should be the date points were earned; defaults to today.
+   */
+  const addPoints = (pointsToAdd: number, forDate: Date = startOfDay(new Date())) => {
+    // Only apply daily XP and level restrictions if affecting today!
+    const isToday = isSameDay(forDate, startOfDay(new Date()));
+    let remainingDailyXP = MAX_DAILY_XP - dailyXPEarned;
+    let actualPointsToAdd = pointsToAdd;
+
+    if (isToday) {
+      if (remainingDailyXP <= 0) {
+        toast.warning(`You've reached the daily XP limit (${MAX_DAILY_XP} XP)`, { duration: 5000 });
+        return 0;
       }
+      actualPointsToAdd = Math.min(pointsToAdd, remainingDailyXP);
+      if (actualPointsToAdd < pointsToAdd) {
+        toast.warning(`Only added ${actualPointsToAdd} XP (daily limit: ${MAX_DAILY_XP} XP)`, { duration: 5000 });
+      }
+      setPoints(prev => prev + actualPointsToAdd);
+      setDailyXPEarned(prev => prev + actualPointsToAdd);
+    } else {
+      // For non-today, just add the points to streak—don't update main XP/levels
+      // Optionally, comment out below if you want points to retroactively update total XP as well
+      // setPoints(prev => prev + actualPointsToAdd);
+      // Do not update dailyXPEarned for past dates
     }
-    
-    localStorage.setItem('userLevel', newLevel.toString());
-  }, [points, startOfDayLevel]);
-  
-  const addPoints = (pointsToAdd: number) => {
-    const remainingDailyXP = MAX_DAILY_XP - dailyXPEarned;
-    
-    if (remainingDailyXP <= 0) {
-      toast.warning(`You've reached the daily XP limit (${MAX_DAILY_XP} XP)`, {
-        duration: 5000,
-      });
-      return;
-    }
-    
-    const actualPointsToAdd = Math.min(pointsToAdd, remainingDailyXP);
-    
-    if (actualPointsToAdd < pointsToAdd) {
-      toast.warning(`Only added ${actualPointsToAdd} XP (daily limit: ${MAX_DAILY_XP} XP)`, {
-        duration: 5000,
-      });
-    }
-    
-    setPoints(prev => prev + actualPointsToAdd);
-    setDailyXPEarned(prev => prev + actualPointsToAdd);
-    
+    updateDailyStreakForDate(forDate, actualPointsToAdd, 0);
     return actualPointsToAdd;
   };
-  
-  const handleAddTask = (task: Task) => {
-    setTasks([...tasks, task]);
-  };
-  
-  const handleCompleteTask = (id: string) => {
+
+  // --- Task Completion ---
+  const handleCompleteTask = (id: string, completedDate?: Date) => {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
-    
-    const pointsAdded = addPoints(task.points);
-    
+    const forDate = completedDate ? startOfDay(completedDate) : startOfDay(new Date());
+
+    const pointsAdded = addPoints(task.points, forDate);
+
     if (pointsAdded) {
-      setTodayPoints((prev) => prev + pointsAdded);
-      setTodayTasksCompleted((prev) => prev + 1);
-      
-      setTasks(tasks.map((t) => {
-        if (t.id === id) {
-          return { ...t, completed: true };
-        }
-        return t;
-      }));
+      // If the completed day is today, update today's state
+      if (isSameDay(forDate, startOfDay(new Date()))) {
+        setTodayPoints(prev => prev + pointsAdded);
+        setTodayTasksCompleted(prev => prev + 1);
+      }
+      // Update completed status for task
+      setTasks(tasks.map((t) => t.id === id ? { ...t, completed: true } : t));
+      // Also update streaks for correct day
+      updateDailyStreakForDate(forDate, 0, 1); // add to tasksCompleted
     }
   };
-  
+
+  // --- Bad Habits ---
+  const handleTriggerBadHabit = (id: string, triggeredDate?: Date) => {
+    const badHabit = badHabits.find((habit) => habit.id === id);
+    if (!badHabit) return;
+    const forDate = triggeredDate ? startOfDay(triggeredDate) : startOfDay(new Date());
+
+    // Remove points for the bad habit (can never go below 0)
+    setPoints(prev => Math.max(0, prev - badHabit.points));
+    if (isSameDay(forDate, startOfDay(new Date()))) {
+      setTodayPoints(prev => Math.max(0, prev - badHabit.points));
+    }
+    setBadHabitsAvoided(prev => Math.max(0, prev - 1));
+
+    // Remove points from the streak for the correct day (and never < 0)
+    updateDailyStreakForDate(forDate, -badHabit.points, 0);
+  };
+
+  // --- Rewards ---
+  const handleClaimReward = (id: string, claimedDate?: Date) => {
+    const reward = rewards.find((r) => r.id === id);
+    if (!reward || points < reward.points || reward.claimed) return;
+    const forDate = claimedDate ? startOfDay(claimedDate) : startOfDay(new Date());
+
+    setPoints((prev) => prev - reward.points);
+    setRewardsClaimed((prev) => prev + 1);
+    setRewards(rewards.map((r) => r.id === id ? { ...r, claimed: true, lastClaimed: new Date().toISOString() } : r));
+    // Optionally, could track a special "rewards claimed" per streak day if you want
+    // For now, no change to streaks needed.
+  };
+
   const handleDeleteTask = (id: string) => {
     setTasks(tasks.filter((task) => task.id !== id));
   };
@@ -364,15 +370,6 @@ const Index = () => {
     setBadHabitsAvoided(prev => prev + 1); // Increment avoided count when adding a new bad habit
   };
   
-  const handleTriggerBadHabit = (id: string) => {
-    const badHabit = badHabits.find((habit) => habit.id === id);
-    if (!badHabit) return;
-    
-    setPoints((prev) => Math.max(0, prev - badHabit.points));
-    setTodayPoints((prev) => Math.max(0, prev - badHabit.points));
-    setBadHabitsAvoided(prev => Math.max(0, prev - 1)); // Decrement avoided count when triggered
-  };
-  
   const handleDeleteBadHabit = (id: string) => {
     setBadHabits(badHabits.filter((habit) => habit.id !== id));
     setBadHabitsAvoided(prev => Math.max(0, prev - 1)); // Decrement avoided count when deleted
@@ -380,25 +377,6 @@ const Index = () => {
   
   const handleAddReward = (reward: Reward) => {
     setRewards([...rewards, reward]);
-  };
-  
-  const handleClaimReward = (id: string) => {
-    const reward = rewards.find((r) => r.id === id);
-    if (!reward || points < reward.points || reward.claimed) return;
-    
-    setPoints((prev) => prev - reward.points);
-    setRewardsClaimed((prev) => prev + 1); // This was working but we need to update the rewards list
-    
-    setRewards(rewards.map((r) => {
-      if (r.id === id) {
-        return { 
-          ...r, 
-          claimed: true,
-          lastClaimed: new Date().toISOString()
-        };
-      }
-      return r;
-    }));
   };
   
   const handleDeleteReward = (id: string) => {
