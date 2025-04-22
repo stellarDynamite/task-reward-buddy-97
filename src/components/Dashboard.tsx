@@ -1,12 +1,15 @@
+
 import React from 'react';
-import { CircleUser, Trophy, Star, Info } from 'lucide-react';
+import { CircleUser, Trophy, Star, Info, Gift } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
+import { Separator } from "@/components/ui/separator";
 
 interface DashboardProps {
   points: number;
+  rewardPoints: number;
   level: number;
   pointsToNextLevel: number;
   pointsNeededForNextLevel: number;
@@ -19,6 +22,7 @@ interface DashboardProps {
 
 const Dashboard = ({
   points,
+  rewardPoints,
   level,
   pointsToNextLevel,
   pointsNeededForNextLevel,
@@ -47,7 +51,7 @@ const Dashboard = ({
         <CardContent className="text-white">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-2xl font-bold">Level {level}</h3>
-            <div className="text-2xl font-bold">{points} pts</div>
+            <div className="text-2xl font-bold">{points} XP</div>
           </div>
           <Progress value={progress} className="h-3 bg-white/20" />
           <div className="text-xs mt-1 text-white/80 flex justify-between">
@@ -86,6 +90,17 @@ const Dashboard = ({
               value={dailyXPProgress} 
               className={cn("h-2 bg-white/20", dailyXPEarned >= MAX_DAILY_XP ? "bg-amber-400" : "")}
             />
+          </div>
+          
+          {/* Reward Points Section */}
+          <div className="mt-4 pt-3 border-t border-white/20">
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center gap-2">
+                <Gift className="h-4 w-4" />
+                <span className="text-sm">Reward Points</span>
+              </div>
+              <span className="font-bold">{rewardPoints}</span>
+            </div>
           </div>
         </CardContent>
       </Card>

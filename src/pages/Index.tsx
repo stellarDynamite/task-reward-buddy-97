@@ -90,6 +90,9 @@ const Index = () => {
   const [points, setPoints] = useState(50);
   const [activeTab, setActiveTab] = useState<TabValue>('dashboard');
   
+  // New state for reward points that's separate from XP/level points
+  const [rewardPoints, setRewardPoints] = useState(50);
+  
   // Stats - explicitly track these separately
   const tasksCompleted = tasks.filter(task => task.completed).length;
   const [badHabitsAvoided, setBadHabitsAvoided] = useState(badHabits.length); // Track this directly
@@ -113,6 +116,7 @@ const Index = () => {
     const savedBadHabits = localStorage.getItem('badHabits');
     const savedRewards = localStorage.getItem('rewards');
     const savedPoints = localStorage.getItem('points');
+    const savedRewardPoints = localStorage.getItem('rewardPoints');
     const savedStats = localStorage.getItem('stats');
     const savedStreaks = localStorage.getItem('dailyStreaks');
     const savedStartOfDayLevel = localStorage.getItem('startOfDayLevel');
@@ -136,6 +140,8 @@ const Index = () => {
     
     if (savedRewards) setRewards(JSON.parse(savedRewards));
     if (savedPoints) setPoints(JSON.parse(savedPoints));
+    if (savedRewardPoints) setRewardPoints(JSON.parse(savedRewardPoints));
+    else setRewardPoints(JSON.parse(savedPoints || '50')); // Initialize with same value as points if not saved
     
     if (savedStats) {
       try {
@@ -227,11 +233,13 @@ const Index = () => {
     }
   }, []);
   
+  // Save to localStorage whenever relevant state changes
   useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
     localStorage.setItem('badHabits', JSON.stringify(badHabits));
     localStorage.setItem('rewards', JSON.stringify(rewards));
     localStorage.setItem('points', JSON.stringify(points));
+    localStorage.setItem('rewardPoints', JSON.stringify(rewardPoints));
     
     localStorage.setItem('stats', JSON.stringify({
       rewardsClaimed,
@@ -242,8 +250,9 @@ const Index = () => {
     
     localStorage.setItem('startOfDayLevel', JSON.stringify(startOfDayLevel));
     localStorage.setItem('dailyXPEarned', JSON.stringify(dailyXPEarned));
-  }, [tasks, badHabits, rewards, points, dailyStreaks, startOfDayLevel, dailyXPEarned, rewardsClaimed, badHabitsAvoided]);
+  }, [tasks, badHabits, rewards, points, rewardPoints, dailyStreaks, startOfDayLevel, dailyXPEarned, rewardsClaimed, badHabitsAvoided]);
   
+  // Update daily streaks with the current day's data
   useEffect(() => {
     const today = startOfDay(new Date());
     
@@ -270,6 +279,7 @@ const Index = () => {
     }
   }, [dailyXPEarned, todayTasksCompleted]);
   
+  // Level up notification effect
   useEffect(() => {
     const [newLevel] = calculateLevel(points, startOfDayLevel);
     const prevLevel = localStorage.getItem('userLevel');
@@ -317,6 +327,7 @@ const Index = () => {
     }
     
     setPoints(prev => prev + actualPointsToAdd);
+    setRewardPoints(prev => prev + actualPointsToAdd); // Also add to reward points
     setDailyXPEarned(prev => prev + actualPointsToAdd);
     
     // Immediately update todayPoints
@@ -367,6 +378,7 @@ const Index = () => {
     if (!badHabit) return;
     
     setPoints((prev) => Math.max(0, prev - badHabit.points));
+    setRewardPoints((prev) => Math.max(0, prev - badHabit.points));
     setTodayPoints((prev) => Math.max(0, prev - badHabit.points));
     setBadHabitsAvoided(prev => Math.max(0, prev - 1)); // Decrement avoided count when triggered
   };
@@ -382,10 +394,11 @@ const Index = () => {
   
   const handleClaimReward = (id: string) => {
     const reward = rewards.find((r) => r.id === id);
-    if (!reward || points < reward.points || reward.claimed) return;
+    if (!reward || rewardPoints < reward.points || reward.claimed) return;
     
-    setPoints((prev) => prev - reward.points);
-    setRewardsClaimed((prev) => prev + 1); // This was working but we need to update the rewards list
+    // Only reduce rewardPoints, not the actual XP/level points
+    setRewardPoints((prev) => prev - reward.points);
+    setRewardsClaimed((prev) => prev + 1);
     
     setRewards(rewards.map((r) => {
       if (r.id === id) {
@@ -416,6 +429,7 @@ const Index = () => {
           <div className="space-y-6">
             <Dashboard
               points={points}
+              rewardPoints={rewardPoints}
               level={level}
               pointsToNextLevel={pointsToNextLevel}
               pointsNeededForNextLevel={pointsNeededForNextLevel}
@@ -451,7 +465,7 @@ const Index = () => {
         return (
           <RewardList
             rewards={rewards}
-            userPoints={points}
+            userPoints={rewardPoints}
             onAddReward={handleAddReward}
             onClaimReward={handleClaimReward}
             onDeleteReward={handleDeleteReward}
@@ -468,6 +482,7 @@ const Index = () => {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         points={points}
+        rewardPoints={rewardPoints}
       />
       <main>
         {renderTabContent()}
