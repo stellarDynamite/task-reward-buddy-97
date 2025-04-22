@@ -253,26 +253,26 @@ const Index = () => {
         streak.date instanceof Date && isSameDay(streak.date, today)
       );
 
-      // Calculate points earned today (dailyXPEarned)
+      // Update or create today's streak with the current dailyXPEarned and todayTasksCompleted
       if (todayStreakIndex >= 0) {
         const updatedStreaks = [...dailyStreaks];
         updatedStreaks[todayStreakIndex] = {
-          date: today,
-          points: dailyXPEarned, // Use dailyXPEarned instead of todayPoints
+          ...updatedStreaks[todayStreakIndex],
+          points: dailyXPEarned,
           tasksCompleted: todayTasksCompleted
         };
         setDailyStreaks(updatedStreaks);
       } else {
         setDailyStreaks([...dailyStreaks, {
           date: today,
-          points: dailyXPEarned, // Use dailyXPEarned for new day
+          points: dailyXPEarned,
           tasksCompleted: todayTasksCompleted
         }]);
       }
     };
     
     updateTodayStreak();
-  }, [dailyXPEarned, todayTasksCompleted]); // Update when dailyXPEarned changes
+  }, [dailyXPEarned, todayTasksCompleted, dailyStreaks]); // Added dailyStreaks dependency
   
   useEffect(() => {
     const [newLevel] = calculateLevel(points, startOfDayLevel);
@@ -309,7 +309,7 @@ const Index = () => {
       toast.warning(`You've reached the daily XP limit (${MAX_DAILY_XP} XP)`, {
         duration: 5000,
       });
-      return;
+      return 0; // Return 0 if no points can be added
     }
     
     const actualPointsToAdd = Math.min(pointsToAdd, remainingDailyXP);
@@ -322,6 +322,9 @@ const Index = () => {
     
     setPoints(prev => prev + actualPointsToAdd);
     setDailyXPEarned(prev => prev + actualPointsToAdd);
+    
+    // Immediately update todayPoints
+    setTodayPoints(prev => prev + actualPointsToAdd);
     
     return actualPointsToAdd;
   };
@@ -336,8 +339,7 @@ const Index = () => {
     
     const pointsAdded = addPoints(task.points);
     
-    if (pointsAdded) {
-      setTodayPoints((prev) => prev + pointsAdded);
+    if (pointsAdded > 0) {
       setTodayTasksCompleted((prev) => prev + 1);
       
       setTasks(tasks.map((t) => {
