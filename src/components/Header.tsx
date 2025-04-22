@@ -10,7 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { useMediaQuery } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export type TabValue = 'dashboard' | 'tasks' | 'bad-habits' | 'rewards';
 
@@ -22,7 +22,7 @@ interface HeaderProps {
 }
 
 const Header = ({ activeTab, setActiveTab, points, rewardPoints }: HeaderProps) => {
-  const isMobile = useMediaQuery('(max-width: 640px)');
+  const isMobile = useIsMobile();
   const [sheetOpen, setSheetOpen] = useState(false);
   
   const handleTabClick = (tab: TabValue) => {
