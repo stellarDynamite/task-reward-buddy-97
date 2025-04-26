@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Task } from '@/components/TaskList';
 import { BadHabit } from '@/components/BadHabitList';
@@ -33,7 +34,7 @@ const INITIAL_REWARDS: Reward[] = [
 
 // Define interface for daily streak data
 export interface DailyStreak {
-  date: Date;
+  date: Date | string;
   points: number;
   tasksCompleted: number;
 }
@@ -150,12 +151,16 @@ const Index = () => {
     if (savedStreaks) {
       try {
         const parsedStreaks = JSON.parse(savedStreaks);
+        // Make sure we parse the dates properly
         const streaks = parsedStreaks.map((streak: any) => parseDates(streak));
         setDailyStreaks(streaks);
         
         const today = startOfDay(new Date());
         const todayStreak = streaks.find((s: DailyStreak) => {
-          return s.date instanceof Date && isSameDay(s.date, today);
+          const streakDate = s.date instanceof Date 
+            ? s.date 
+            : (typeof s.date === 'string' ? parseISO(s.date) : null);
+          return streakDate && isSameDay(streakDate, today);
         });
         
         if (todayStreak) {
@@ -249,7 +254,17 @@ const Index = () => {
    */
   const updateDailyStreakForDate = (targetDate: Date, addPoints: number, addTasksCompleted: number = 0) => {
     setDailyStreaks(prevStreaks => {
-      const idx = prevStreaks.findIndex(s => s.date instanceof Date && isSameDay(s.date, targetDate));
+      // Improved date comparison that works with both Date objects and strings
+      const idx = prevStreaks.findIndex(s => {
+        if (!s.date) return false;
+        
+        const streakDate = s.date instanceof Date 
+          ? s.date 
+          : (typeof s.date === 'string' ? parseISO(s.date) : null);
+        
+        return streakDate && isSameDay(streakDate, targetDate);
+      });
+      
       if (idx >= 0) {
         // Update existing streak
         const updated = [...prevStreaks];
@@ -305,153 +320,166 @@ const Index = () => {
   };
 
   // --- Task Completion ---
-  const handleCompleteTask = (id: string, completedDate?: Date) => {
+  const handleCompleteTask = (id: string) => {
     const task = tasks.find(t => t.id === id);
-    if (!task) return;
-    const forDate = completedDate ? startOfDay(completedDate) : startOfDay(new Date());
-
-    const pointsAdded = addPoints(task.points, forDate);
-
-    if (pointsAdded) {
-      // If the completed day is today, update today's state
-      if (isSameDay(forDate, startOfDay(new Date()))) {
-        setTodayPoints(prev => prev + pointsAdded);
-        setTodayTasksCompleted(prev => prev + 1);
-      }
-      // Update completed status for task
-      setTasks(tasks.map((t) => t.id === id ? { ...t, completed: true } : t));
-      // Also update streaks for correct day
-      updateDailyStreakForDate(forDate, 0, 1); // add to tasksCompleted
-    }
+    if (!task || task.completed) return;
+    
+    // Add points for completing the task
+    const earnedPoints = addPoints(task.points);
+    
+    // Mark the task as completed
+    setTasks(tasks.map(t => (t.id === id ? { ...t, completed: true } : t)));
+    
+    // Update today's tasks completed count
+    const today = startOfDay(new Date());
+    updateDailyStreakForDate(today, 0, 1); // Add 1 to the task count, 0 additional points
+    setTodayTasksCompleted(prev => prev + 1);
+    
+    console.log(`Task completed: ${task.title} - Added ${earnedPoints} points and updated streak`);
   };
-
-  // --- Bad Habits ---
-  const handleTriggerBadHabit = (id: string, triggeredDate?: Date) => {
-    const badHabit = badHabits.find((habit) => habit.id === id);
+  
+  // --- Bad Habit Tracking ---
+  const handleTriggerBadHabit = (id: string) => {
+    const badHabit = badHabits.find(h => h.id === id);
     if (!badHabit) return;
-    const forDate = triggeredDate ? startOfDay(triggeredDate) : startOfDay(new Date());
-
-    // Remove points for the bad habit (can never go below 0)
-    setPoints(prev => Math.max(0, prev - badHabit.points));
-    if (isSameDay(forDate, startOfDay(new Date()))) {
-      setTodayPoints(prev => Math.max(0, prev - badHabit.points));
-    }
+    
+    // Subtract points for triggering a bad habit
+    const lostPoints = -badHabit.points; // Negative points
+    addPoints(lostPoints);
+    
+    // Decrement the "avoided" count
     setBadHabitsAvoided(prev => Math.max(0, prev - 1));
-
-    // Remove points from the streak for the correct day (and never < 0)
-    updateDailyStreakForDate(forDate, -badHabit.points, 0);
+    
+    console.log(`Bad habit triggered: ${badHabit.title} - Lost ${Math.abs(lostPoints)} points`);
   };
 
-  // --- Rewards ---
-  const handleClaimReward = (id: string, claimedDate?: Date) => {
-    const reward = rewards.find((r) => r.id === id);
-    if (!reward || points < reward.points || reward.claimed) return;
-    const forDate = claimedDate ? startOfDay(claimedDate) : startOfDay(new Date());
-
-    setPoints((prev) => prev - reward.points);
-    setRewardsClaimed((prev) => prev + 1);
-    setRewards(rewards.map((r) => r.id === id ? { ...r, claimed: true, lastClaimed: new Date().toISOString() } : r));
-    // Optionally, could track a special "rewards claimed" per streak day if you want
-    // For now, no change to streaks needed.
+  // --- Reward Claiming ---
+  const handleClaimReward = (id: string) => {
+    const reward = rewards.find(r => r.id === id);
+    if (!reward || reward.claimed) return;
+    
+    // Check if user has enough points
+    if (points < reward.points) {
+      toast.error(`Not enough points to claim "${reward.title}"`);
+      return;
+    }
+    
+    // Subtract points for claiming the reward
+    setPoints(prev => prev - reward.points);
+    
+    // Mark the reward as claimed
+    setRewards(rewards.map(r => r.id === id ? { ...r, claimed: true, lastClaimed: new Date().toISOString() } : r));
+    
+    // Increment rewards claimed count
+    setRewardsClaimed(prev => prev + 1);
+    
+    toast.success(`Reward claimed: ${reward.title}`);
   };
-
+  
+  // --- Task Management ---
+  const handleAddTask = (task: Task) => {
+    setTasks([...tasks, task]);
+  };
+  
   const handleDeleteTask = (id: string) => {
-    setTasks(tasks.filter((task) => task.id !== id));
+    setTasks(tasks.filter(t => t.id !== id));
   };
   
-  const handleEditTask = (editedTask: Task) => {
-    setTasks(tasks.map(task => 
-      task.id === editedTask.id ? editedTask : task
-    ));
+  const handleEditTask = (updatedTask: Task) => {
+    setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
   };
   
+  // --- Bad Habit Management ---
   const handleAddBadHabit = (badHabit: BadHabit) => {
     setBadHabits([...badHabits, badHabit]);
-    setBadHabitsAvoided(prev => prev + 1); // Increment avoided count when adding a new bad habit
+    // When adding a new bad habit, increase the "avoided" count
+    setBadHabitsAvoided(prev => prev + 1);
   };
   
   const handleDeleteBadHabit = (id: string) => {
-    setBadHabits(badHabits.filter((habit) => habit.id !== id));
-    setBadHabitsAvoided(prev => Math.max(0, prev - 1)); // Decrement avoided count when deleted
+    // Check if the bad habit to delete is still being "avoided"
+    const isAvoided = badHabitsAvoided > 0 && badHabitsAvoided === badHabits.length;
+    
+    setBadHabits(badHabits.filter(h => h.id !== id));
+    
+    // If all bad habits were being avoided, decrement the count when one is deleted
+    if (isAvoided) {
+      setBadHabitsAvoided(prev => Math.max(0, prev - 1));
+    }
   };
   
+  // --- Reward Management ---
   const handleAddReward = (reward: Reward) => {
     setRewards([...rewards, reward]);
   };
   
   const handleDeleteReward = (id: string) => {
+    // Check if the reward being deleted was claimed
     const reward = rewards.find(r => r.id === id);
-    setRewards(rewards.filter((reward) => reward.id !== id));
+    const wasClaimed = reward?.claimed || false;
     
-    // If we're deleting a claimed reward, decrement the counter
-    if (reward && reward.claimed) {
+    setRewards(rewards.filter(r => r.id !== id));
+    
+    // If a claimed reward is being deleted, decrement the count
+    if (wasClaimed) {
       setRewardsClaimed(prev => Math.max(0, prev - 1));
     }
   };
   
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return (
-          <div className="space-y-6">
-            <Dashboard
-              points={points}
-              level={level}
-              pointsToNextLevel={pointsToNextLevel}
-              pointsNeededForNextLevel={pointsNeededForNextLevel}
-              tasksCompleted={tasksCompleted}
-              totalTasks={tasks.length}
-              badHabitsAvoided={badHabitsAvoided}
-              totalBadHabits={badHabits.length}
-              rewardsClaimed={rewardsClaimed}
-            />
-            <StreakCalendar dailyStreaks={dailyStreaks} />
-          </div>
-        );
-      case 'tasks':
-        return (
-          <TaskList
-            tasks={tasks}
-            onAddTask={handleAddTask}
-            onCompleteTask={handleCompleteTask}
-            onDeleteTask={handleDeleteTask}
-            onEditTask={handleEditTask}
-          />
-        );
-      case 'bad-habits':
-        return (
-          <BadHabitList
-            badHabits={badHabits}
-            onAddBadHabit={handleAddBadHabit}
-            onTriggerBadHabit={handleTriggerBadHabit}
-            onDeleteBadHabit={handleDeleteBadHabit}
-          />
-        );
-      case 'rewards':
-        return (
-          <RewardList
-            rewards={rewards}
-            userPoints={points}
-            onAddReward={handleAddReward}
-            onClaimReward={handleClaimReward}
-            onDeleteReward={handleDeleteReward}
-          />
-        );
-      default:
-        return null;
-    }
-  };
-  
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <Header
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        points={points}
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <Header 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        points={points} 
       />
-      <main>
-        {renderTabContent()}
-      </main>
+      
+      {activeTab === 'dashboard' && (
+        <div className="space-y-8">
+          <Dashboard
+            points={points}
+            level={level}
+            pointsToNextLevel={pointsToNextLevel}
+            pointsNeededForNextLevel={pointsNeededForNextLevel}
+            tasksCompleted={tasksCompleted}
+            totalTasks={tasks.length}
+            badHabitsAvoided={badHabitsAvoided}
+            totalBadHabits={badHabits.length}
+            rewardsClaimed={rewardsClaimed}
+          />
+          
+          <StreakCalendar dailyStreaks={dailyStreaks} />
+        </div>
+      )}
+      
+      {activeTab === 'tasks' && (
+        <TaskList 
+          tasks={tasks} 
+          onAddTask={handleAddTask}
+          onCompleteTask={handleCompleteTask}
+          onDeleteTask={handleDeleteTask}
+          onEditTask={handleEditTask}
+        />
+      )}
+      
+      {activeTab === 'bad-habits' && (
+        <BadHabitList
+          badHabits={badHabits}
+          onAddBadHabit={handleAddBadHabit}
+          onTriggerBadHabit={handleTriggerBadHabit}
+          onDeleteBadHabit={handleDeleteBadHabit}
+        />
+      )}
+      
+      {activeTab === 'rewards' && (
+        <RewardList
+          rewards={rewards}
+          userPoints={points}
+          onAddReward={handleAddReward}
+          onClaimReward={handleClaimReward}
+          onDeleteReward={handleDeleteReward}
+        />
+      )}
     </div>
   );
 };

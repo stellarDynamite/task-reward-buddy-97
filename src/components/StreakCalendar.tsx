@@ -2,12 +2,12 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { format, startOfWeek, addDays, startOfMonth, getDaysInMonth, isSameDay } from 'date-fns';
+import { format, startOfWeek, addDays, startOfMonth, getDaysInMonth, isSameDay, parseISO } from 'date-fns';
 import { Award, Calendar, ChevronLeft, ChevronRight, Star, Trophy } from 'lucide-react';
 import { Button } from './ui/button';
 
 interface DailyStreak {
-  date: Date;
+  date: Date | string;
   points: number;
   tasksCompleted: number;
 }
@@ -19,6 +19,18 @@ interface StreakCalendarProps {
 const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'weekly' | 'monthly'>('weekly');
+
+  // Helper function to safely compare dates regardless of type
+  const compareDate = (streakDate: Date | string, targetDate: Date): boolean => {
+    if (!streakDate) return false;
+    const dateObj = streakDate instanceof Date ? streakDate : parseISO(streakDate as string);
+    return isSameDay(dateObj, targetDate);
+  };
+
+  // Helper function to find streak for a specific day
+  const findStreakForDay = (day: Date): DailyStreak | undefined => {
+    return dailyStreaks.find(streak => compareDate(streak.date, day));
+  };
 
   // Navigate to previous week/month
   const goToPrevious = () => {
@@ -58,7 +70,7 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
 
     // Get best day of the week
     const weekStreaks = weekDays.map(day => {
-      const streak = dailyStreaks.find(s => s.date instanceof Date && isSameDay(s.date, day));
+      const streak = findStreakForDay(day);
       return { day, points: streak?.points || 0, tasksCompleted: streak?.tasksCompleted || 0 };
     });
     
@@ -87,7 +99,7 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
         
         <div className="grid grid-cols-7 gap-2">
           {weekDays.map((day, index) => {
-            const streak = dailyStreaks.find(s => s.date instanceof Date && isSameDay(s.date, day));
+            const streak = findStreakForDay(day);
             const hasStreak = streak !== undefined;
             const isToday = isSameDay(day, new Date());
             
@@ -159,7 +171,7 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
 
     // Get top 3 days and monthly totals
     const monthStreaks = monthDays.map(day => {
-      const streak = dailyStreaks.find(s => s.date instanceof Date && isSameDay(s.date, day));
+      const streak = findStreakForDay(day);
       return { day, points: streak?.points || 0, tasksCompleted: streak?.tasksCompleted || 0 };
     });
     
@@ -203,7 +215,7 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
           
           {/* Month days */}
           {monthDays.map((day, i) => {
-            const streak = dailyStreaks.find(s => s.date instanceof Date && isSameDay(s.date, day));
+            const streak = findStreakForDay(day);
             const hasStreak = streak !== undefined;
             const isToday = isSameDay(day, new Date());
             const intensity = hasStreak ? Math.min(100, streak.points * 2) : 0;
