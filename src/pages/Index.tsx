@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Task } from '@/components/TaskList';
 import { BadHabit } from '@/components/BadHabitList';
@@ -66,7 +65,7 @@ const getPointsNeededForLevel = (level: number): number => {
 
 // Calculate current level based on total points, but never decrease
 const calculateLevel = (points: number, startOfDayLevel: number): [number, number, number] => {
-  let level = startOfDayLevel;
+  let level = startOfDayLevel; // Start with current level as minimum
   let totalPointsNeeded = getPointsNeededForLevel(level);
   let previousLevelPoints = 0;
   
@@ -74,14 +73,14 @@ const calculateLevel = (points: number, startOfDayLevel: number): [number, numbe
   while (points >= totalPointsNeeded) {
     level++;
     previousLevelPoints = totalPointsNeeded;
-    totalPointsNeeded += getPointsNeededForLevel(level);
+    totalPointsNeeded = getPointsNeededForLevel(level + 1); // Fix: Use next level for points needed
   }
   
-  // Points progress within current level
-  const pointsInCurrentLevel = points - previousLevelPoints;
+  // Points progress within current level, never allowing level to go below startOfDayLevel
+  const pointsInCurrentLevel = Math.max(0, points - previousLevelPoints);
   const pointsNeededForNextLevel = getPointsNeededForLevel(level);
   
-  return [level, pointsInCurrentLevel, pointsNeededForNextLevel];
+  return [Math.max(level, startOfDayLevel), pointsInCurrentLevel, pointsNeededForNextLevel];
 };
 
 const Index = () => {
