@@ -116,10 +116,12 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
                 key={index}
                 onClick={() => handleDayClick(day)}
                 className={`
-                  flex flex-col items-center p-3 rounded-md border transition-colors
+                  flex flex-col items-center p-3 rounded-md border transition-colors cursor-pointer
+                  hover:ring-2 hover:ring-primary/50
                   ${hasStreak ? 'bg-primary/10 border-primary/30 hover:bg-primary/20' : 'bg-background border-muted hover:bg-muted/10'}
                   ${isToday ? 'ring-2 ring-primary/50' : ''}
                 `}
+                title={`Click to view details for ${format(day, 'MMM d, yyyy')}`}
               >
                 <div className="text-xs font-medium">{format(day, 'EEE')}</div>
                 <div className={`text-xs ${isToday ? 'font-bold' : ''}`}>{format(day, 'd')}</div>
@@ -234,13 +236,15 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
                 key={i}
                 onClick={() => handleDayClick(day)}
                 className={`
-                  p-1 aspect-square flex flex-col items-center justify-center rounded-md border text-xs transition-colors
+                  p-1 aspect-square flex flex-col items-center justify-center rounded-md border text-xs 
+                  transition-colors cursor-pointer hover:ring-2 hover:ring-primary/30
                   ${hasStreak ? `bg-primary/10 border-primary/30 hover:bg-primary/20` : 'bg-background border-muted hover:bg-muted/10'}
                   ${isToday ? 'ring-2 ring-primary/50' : ''}
                 `}
                 style={{ 
                   opacity: hasStreak ? Math.max(0.5, Math.min(1, streak.points / 50)) : 0.5
                 }}
+                title={`Click to view details for ${format(day, 'MMM d, yyyy')}`}
               >
                 <div>{format(day, 'd')}</div>
                 {hasStreak && <div className="font-bold">{streak.points}</div>}
