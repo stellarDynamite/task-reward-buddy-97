@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Check, Plus, Trash2, Clock, Calendar, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -449,7 +450,7 @@ const TaskList = ({
                 }}>
                   Cancel
                 </Button>
-                <Button onClick={handleAddTask}>Add Task</Button>
+                <Button onClick={() => handleAddTask()}>Add Task</Button>
               </div>
             </div>
           </DialogContent>
@@ -577,7 +578,7 @@ const TaskList = ({
                 }}>
                   Cancel
                 </Button>
-                <Button onClick={handleEditTask}>Save Changes</Button>
+                <Button onClick={() => handleEditTask()}>Save Changes</Button>
               </div>
             </div>
           )}
