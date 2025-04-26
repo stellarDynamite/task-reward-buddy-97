@@ -1,10 +1,10 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format, startOfWeek, addDays, startOfMonth, getDaysInMonth, isSameDay, parseISO } from 'date-fns';
-import { Award, Calendar, ChevronLeft, ChevronRight, Star, Trophy } from 'lucide-react';
+import { Award, Calendar, ChevronLeft, ChevronRight, Star, Trophy, CheckCircle2 } from 'lucide-react';
 import { Button } from './ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 
 interface DailyStreak {
   date: Date | string;
@@ -19,6 +19,7 @@ interface StreakCalendarProps {
 const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'weekly' | 'monthly'>('weekly');
+  const [selectedDay, setSelectedDay] = useState<DailyStreak | null>(null);
 
   // Helper function to safely compare dates regardless of type
   const compareDate = (streakDate: Date | string, targetDate: Date): boolean => {
@@ -63,6 +64,13 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
     setCurrentDate(new Date());
   };
 
+  const handleDayClick = (day: Date) => {
+    const streak = findStreakForDay(day);
+    if (streak) {
+      setSelectedDay(streak);
+    }
+  };
+
   // Calculate weekly stats
   const renderWeekView = () => {
     const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 }); // Monday as first day
@@ -104,11 +112,12 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
             const isToday = isSameDay(day, new Date());
             
             return (
-              <div 
+              <button 
                 key={index}
+                onClick={() => handleDayClick(day)}
                 className={`
-                  flex flex-col items-center p-3 rounded-md border
-                  ${hasStreak ? 'bg-primary/10 border-primary/30' : 'bg-background border-muted'}
+                  flex flex-col items-center p-3 rounded-md border transition-colors
+                  ${hasStreak ? 'bg-primary/10 border-primary/30 hover:bg-primary/20' : 'bg-background border-muted hover:bg-muted/10'}
                   ${isToday ? 'ring-2 ring-primary/50' : ''}
                 `}
               >
@@ -126,7 +135,7 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
                 ) : (
                   <div className="mt-1 text-xs text-muted-foreground">0</div>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
@@ -221,11 +230,12 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
             const intensity = hasStreak ? Math.min(100, streak.points * 2) : 0;
             
             return (
-              <div
+              <button
                 key={i}
+                onClick={() => handleDayClick(day)}
                 className={`
-                  p-1 aspect-square flex flex-col items-center justify-center rounded-md border text-xs
-                  ${hasStreak ? `bg-primary/10 border-primary/30` : 'bg-background border-muted'}
+                  p-1 aspect-square flex flex-col items-center justify-center rounded-md border text-xs transition-colors
+                  ${hasStreak ? `bg-primary/10 border-primary/30 hover:bg-primary/20` : 'bg-background border-muted hover:bg-muted/10'}
                   ${isToday ? 'ring-2 ring-primary/50' : ''}
                 `}
                 style={{ 
@@ -234,7 +244,7 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
               >
                 <div>{format(day, 'd')}</div>
                 {hasStreak && <div className="font-bold">{streak.points}</div>}
-              </div>
+              </button>
             );
           })}
         </div>
@@ -312,6 +322,32 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
             {renderMonthView()}
           </TabsContent>
         </Tabs>
+
+        {/* Day Details Dialog */}
+        <Dialog open={!!selectedDay} onOpenChange={() => setSelectedDay(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {selectedDay ? format(
+                  selectedDay.date instanceof Date ? selectedDay.date : parseISO(selectedDay.date as string),
+                  'MMMM d, yyyy'
+                ) : ''}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Star className="h-5 w-5 text-yellow-500" fill="currentColor" />
+                <span className="font-medium">XP Earned:</span>
+                <span>{selectedDay?.points || 0} points</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <span className="font-medium">Tasks Completed:</span>
+                <span>{selectedDay?.tasksCompleted || 0} tasks</span>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
