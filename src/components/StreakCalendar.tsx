@@ -17,6 +17,7 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'weekly' | 'monthly'>('weekly');
   const [selectedDay, setSelectedDay] = useState<DailyStreak | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const goToPrevious = () => {
     if (view === 'weekly') {
@@ -51,8 +52,18 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
       const streakDate = s.date instanceof Date ? s.date : new Date(s.date);
       return streakDate && streakDate.getTime() === day.getTime();
     });
+    
     if (streak) {
       setSelectedDay(streak);
+      setDialogOpen(true);
+    } else {
+      // For days without streak data, show a dialog with zeros
+      setSelectedDay({
+        date: day,
+        points: 0,
+        tasksCompleted: 0
+      });
+      setDialogOpen(true);
     }
   };
 
@@ -92,7 +103,7 @@ const StreakCalendar = ({ dailyStreaks }: StreakCalendarProps) => {
           </TabsContent>
         </Tabs>
 
-        <Dialog open={!!selectedDay} onOpenChange={() => setSelectedDay(null)}>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
