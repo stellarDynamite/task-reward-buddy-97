@@ -88,11 +88,13 @@ const Index = () => {
   const [badHabits, setBadHabits] = useState<BadHabit[]>(INITIAL_BAD_HABITS);
   const [rewards, setRewards] = useState<Reward[]>(INITIAL_REWARDS);
   const [points, setPoints] = useState(50);
+  // New state for spendable points - initialized same as total XP
+  const [spendablePoints, setSpendablePoints] = useState(50);
   const [activeTab, setActiveTab] = useState<TabValue>('dashboard');
   
   // Stats - explicitly track these separately
   const tasksCompleted = tasks.filter(task => task.completed).length;
-  const [badHabitsAvoided, setBadHabitsAvoided] = useState(badHabits.length); // Track this directly
+  const [badHabitsAvoided, setBadHabitsAvoided] = useState(badHabits.length);
   const [rewardsClaimed, setRewardsClaimed] = useState(0);
   
   // Daily Streak tracking
@@ -113,6 +115,7 @@ const Index = () => {
     const savedBadHabits = localStorage.getItem('badHabits');
     const savedRewards = localStorage.getItem('rewards');
     const savedPoints = localStorage.getItem('points');
+    const savedSpendablePoints = localStorage.getItem('spendablePoints');
     const savedStats = localStorage.getItem('stats');
     const savedStreaks = localStorage.getItem('dailyStreaks');
     const savedStartOfDayLevel = localStorage.getItem('startOfDayLevel');
@@ -136,6 +139,13 @@ const Index = () => {
     
     if (savedRewards) setRewards(JSON.parse(savedRewards));
     if (savedPoints) setPoints(JSON.parse(savedPoints));
+    // Load spendable points or default to total points if not found
+    if (savedSpendablePoints) {
+      setSpendablePoints(JSON.parse(savedSpendablePoints));
+    } else if (savedPoints) {
+      // Initialize spendable points to same as total points if not found
+      setSpendablePoints(JSON.parse(savedPoints));
+    }
     
     if (savedStats) {
       try {
@@ -236,6 +246,7 @@ const Index = () => {
     localStorage.setItem('badHabits', JSON.stringify(badHabits));
     localStorage.setItem('rewards', JSON.stringify(rewards));
     localStorage.setItem('points', JSON.stringify(points));
+    localStorage.setItem('spendablePoints', JSON.stringify(spendablePoints));
     
     localStorage.setItem('stats', JSON.stringify({
       rewardsClaimed,
@@ -246,7 +257,7 @@ const Index = () => {
     
     localStorage.setItem('startOfDayLevel', JSON.stringify(startOfDayLevel));
     localStorage.setItem('dailyXPEarned', JSON.stringify(dailyXPEarned));
-  }, [tasks, badHabits, rewards, points, dailyStreaks, startOfDayLevel, dailyXPEarned, rewardsClaimed, badHabitsAvoided]);
+  }, [tasks, badHabits, rewards, points, spendablePoints, dailyStreaks, startOfDayLevel, dailyXPEarned, rewardsClaimed, badHabitsAvoided]);
   
   /**
    * Utility function: Update or add points/tasks for a specific date in streaks
@@ -307,6 +318,7 @@ const Index = () => {
         toast.warning(`Only added ${actualPointsToAdd} XP (daily limit: ${MAX_DAILY_XP} XP)`, { duration: 5000 });
       }
       setPoints(prev => prev + actualPointsToAdd);
+      setSpendablePoints(prev => prev + actualPointsToAdd); // Add to spendable points as well
       setDailyXPEarned(prev => prev + actualPointsToAdd);
     } else {
       // For non-today, just add the points to streak—don't update main XP/levels
@@ -344,6 +356,8 @@ const Index = () => {
     
     // Subtract points for triggering a bad habit
     const lostPoints = -badHabit.points; // Negative points
+    
+    // Update both total XP and spendable points when bad habits are triggered
     addPoints(lostPoints);
     
     // Decrement the "avoided" count
@@ -357,14 +371,14 @@ const Index = () => {
     const reward = rewards.find(r => r.id === id);
     if (!reward || reward.claimed) return;
     
-    // Check if user has enough points
-    if (points < reward.points) {
+    // Check if user has enough SPENDABLE points
+    if (spendablePoints < reward.points) {
       toast.error(`Not enough points to claim "${reward.title}"`);
       return;
     }
     
-    // Subtract points for claiming the reward
-    setPoints(prev => prev - reward.points);
+    // Subtract points ONLY from spendable points, not from the total XP
+    setSpendablePoints(prev => prev - reward.points);
     
     // Mark the reward as claimed
     setRewards(rewards.map(r => r.id === id ? { ...r, claimed: true, lastClaimed: new Date().toISOString() } : r));
@@ -473,7 +487,7 @@ const Index = () => {
       {activeTab === 'rewards' && (
         <RewardList
           rewards={rewards}
-          userPoints={points}
+          userPoints={spendablePoints} // Use spendable points for the rewards section
           onAddReward={handleAddReward}
           onClaimReward={handleClaimReward}
           onDeleteReward={handleDeleteReward}
