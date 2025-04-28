@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { CircleUser, Trophy, Star, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +29,18 @@ const Dashboard = ({
   totalBadHabits,
   rewardsClaimed,
 }: DashboardProps) => {
-  const progress = (pointsToNextLevel / pointsNeededForNextLevel) * 100;
+  // Store the highest points value seen to ensure progress never decreases
+  const [highestPointsToNextLevel, setHighestPointsToNextLevel] = React.useState(pointsToNextLevel);
+  
+  React.useEffect(() => {
+    if (pointsToNextLevel > highestPointsToNextLevel) {
+      setHighestPointsToNextLevel(pointsToNextLevel);
+    }
+  }, [pointsToNextLevel, highestPointsToNextLevel]);
+  
+  // Calculate progress using the highest value, so it never decreases
+  const displayPointsToNextLevel = Math.max(highestPointsToNextLevel, pointsToNextLevel);
+  const progress = (displayPointsToNextLevel / pointsNeededForNextLevel) * 100;
   
   // Get daily XP limit info from localStorage
   const dailyXPEarned = Number(localStorage.getItem('dailyXPEarned') || '0');
@@ -51,7 +63,7 @@ const Dashboard = ({
           </div>
           <Progress value={progress} className="h-3 bg-white/20" />
           <div className="text-xs mt-1 text-white/80 flex justify-between">
-            <span>{pointsToNextLevel} / {pointsNeededForNextLevel} points</span>
+            <span>{displayPointsToNextLevel} / {pointsNeededForNextLevel} points</span>
             <div className="flex items-center gap-1">
               <span>Next Level: {level + 1}</span>
               <TooltipProvider>
