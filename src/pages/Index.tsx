@@ -65,22 +65,25 @@ const getPointsNeededForLevel = (level: number): number => {
 
 // Calculate current level based on total points, but never decrease
 const calculateLevel = (points: number, startOfDayLevel: number): [number, number, number] => {
-  let level = startOfDayLevel; // Start with current level as minimum
+  let level = 1; // Start at level 1
   let totalPointsNeeded = getPointsNeededForLevel(level);
   let previousLevelPoints = 0;
   
-  // Only increase level if points exceed the next threshold
+  // Increase level if points exceed the threshold
   while (points >= totalPointsNeeded) {
     level++;
     previousLevelPoints = totalPointsNeeded;
-    totalPointsNeeded = getPointsNeededForLevel(level + 1); // Fix: Use next level for points needed
+    totalPointsNeeded = getPointsNeededForLevel(level);
   }
   
-  // Points progress within current level, never allowing level to go below startOfDayLevel
-  const pointsInCurrentLevel = Math.max(0, points - previousLevelPoints);
-  const pointsNeededForNextLevel = getPointsNeededForLevel(level);
+  // Ensure level never goes below startOfDayLevel or previously reached levels
+  level = Math.max(level, startOfDayLevel);
   
-  return [Math.max(level, startOfDayLevel), pointsInCurrentLevel, pointsNeededForNextLevel];
+  // Points progress within current level
+  const pointsInCurrentLevel = Math.max(0, points - previousLevelPoints);
+  const pointsNeededForNextLevel = getPointsNeededForLevel(level + 1) - previousLevelPoints;
+  
+  return [level, pointsInCurrentLevel, pointsNeededForNextLevel];
 };
 
 const Index = () => {
