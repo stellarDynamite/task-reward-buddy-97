@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Task } from '@/components/TaskList';
 import { BadHabit } from '@/components/BadHabitList';
 import { Reward } from '@/components/RewardList';
@@ -10,6 +11,7 @@ import Header, { TabValue } from '@/components/Header';
 import StreakCalendar from '@/components/StreakCalendar';
 import { toast } from 'sonner';
 import { format, startOfDay, isSameDay, parseISO } from 'date-fns';
+import { useUserProgress } from '@/hooks/useUserProgress';
 
 // Constants for game balance
 const MAX_DAILY_LEVELS = 3;
@@ -87,11 +89,13 @@ const calculateLevel = (points: number, startOfDayLevel: number): [number, numbe
 };
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { user, loading: authLoading, loadProgress, saveProgress } = useUserProgress();
+  
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
   const [badHabits, setBadHabits] = useState<BadHabit[]>(INITIAL_BAD_HABITS);
   const [rewards, setRewards] = useState<Reward[]>(INITIAL_REWARDS);
   const [points, setPoints] = useState(50);
-  // New state for spendable points - initialized same as total XP
   const [spendablePoints, setSpendablePoints] = useState(50);
   const [activeTab, setActiveTab] = useState<TabValue>('dashboard');
   
@@ -105,138 +109,207 @@ const Index = () => {
   const [todayPoints, setTodayPoints] = useState(0);
   const [todayTasksCompleted, setTodayTasksCompleted] = useState(0);
   
-  // Game balance tracking - add these new state variables
+  // Game balance tracking
   const [startOfDayLevel, setStartOfDayLevel] = useState(1);
   const [dailyXPEarned, setDailyXPEarned] = useState(0);
+  const [progressLoaded, setProgressLoaded] = useState(false);
   
   // Calculate level information with floor at startOfDayLevel
   const [level, pointsToNextLevel, pointsNeededForNextLevel] = calculateLevel(points, startOfDayLevel);
   
-  // Load data from localStorage on initial render
+  // Load progress when user logs in
   useEffect(() => {
-    const savedTasks = localStorage.getItem('tasks');
-    const savedBadHabits = localStorage.getItem('badHabits');
-    const savedRewards = localStorage.getItem('rewards');
-    const savedPoints = localStorage.getItem('points');
-    const savedSpendablePoints = localStorage.getItem('spendablePoints');
-    const savedStats = localStorage.getItem('stats');
-    const savedStreaks = localStorage.getItem('dailyStreaks');
-    const savedStartOfDayLevel = localStorage.getItem('startOfDayLevel');
-    const savedDailyXPEarned = localStorage.getItem('dailyXPEarned');
-    const lastLoginDate = localStorage.getItem('lastLoginDate');
-    
-    if (savedTasks) {
-      try {
-        const parsedTasks = JSON.parse(savedTasks);
-        setTasks(parsedTasks.map((task: Task) => parseDates(task)));
-      } catch (e) {
-        console.error("Error parsing tasks:", e);
-        setTasks(INITIAL_TASKS);
-      }
-    }
-    
-    if (savedBadHabits) {
-      const parsedBadHabits = JSON.parse(savedBadHabits);
-      setBadHabits(parsedBadHabits);
-    }
-    
-    if (savedRewards) setRewards(JSON.parse(savedRewards));
-    if (savedPoints) setPoints(JSON.parse(savedPoints));
-    // Load spendable points or default to total points if not found
-    if (savedSpendablePoints) {
-      setSpendablePoints(JSON.parse(savedSpendablePoints));
-    } else if (savedPoints) {
-      // Initialize spendable points to same as total points if not found
-      setSpendablePoints(JSON.parse(savedPoints));
-    }
-    
-    if (savedStats) {
-      try {
-        const stats = JSON.parse(savedStats);
-        setRewardsClaimed(stats.rewardsClaimed || 0);
-        setBadHabitsAvoided(stats.badHabitsAvoided || badHabits.length);
-      } catch (e) {
-        console.error("Error parsing stats:", e);
-      }
-    }
-    
-    if (savedStreaks) {
-      try {
-        const parsedStreaks = JSON.parse(savedStreaks);
-        // Make sure we parse the dates properly
-        const streaks = parsedStreaks.map((streak: any) => parseDates(streak));
-        setDailyStreaks(streaks);
+    const initializeProgress = async () => {
+      if (authLoading) return;
+      
+      if (user && !progressLoaded) {
+        console.log('Loading user progress from Supabase...');
+        const cloudProgress = await loadProgress();
         
-        const today = startOfDay(new Date());
-        const todayStreak = streaks.find((s: DailyStreak) => {
-          const streakDate = s.date instanceof Date 
-            ? s.date 
-            : (typeof s.date === 'string' ? parseISO(s.date) : null);
-          return streakDate && isSameDay(streakDate, today);
+        if (cloudProgress) {
+          console.log('Loaded cloud progress:', cloudProgress);
+          setTasks(cloudProgress.tasks || INITIAL_TASKS);
+          setBadHabits(cloudProgress.bad_habits || INITIAL_BAD_HABITS);
+          setRewards(cloudProgress.rewards || INITIAL_REWARDS);
+          setPoints(cloudProgress.points || 50);
+          setSpendablePoints(cloudProgress.points || 50);
+          setDailyXPEarned(cloudProgress.daily_xp_earned || 0);
+          
+          toast.success("Progress loaded from your account!", { duration: 3000 });
+        } else {
+          console.log('No cloud progress found, using local data');
+          // Save current local progress to cloud
+          await saveProgress({
+            tasks,
+            bad_habits: badHabits,
+            rewards,
+            points,
+            daily_xp_earned: dailyXPEarned
+          });
+        }
+        setProgressLoaded(true);
+      } else if (!user) {
+        // Load from localStorage if not authenticated
+        console.log('Loading progress from localStorage...');
+        // ... keep existing code (localStorage loading logic)
+        const savedTasks = localStorage.getItem('tasks');
+        const savedBadHabits = localStorage.getItem('badHabits');
+        const savedRewards = localStorage.getItem('rewards');
+        const savedPoints = localStorage.getItem('points');
+        const savedSpendablePoints = localStorage.getItem('spendablePoints');
+        const savedStats = localStorage.getItem('stats');
+        const savedStreaks = localStorage.getItem('dailyStreaks');
+        const savedStartOfDayLevel = localStorage.getItem('startOfDayLevel');
+        const savedDailyXPEarned = localStorage.getItem('dailyXPEarned');
+        const lastLoginDate = localStorage.getItem('lastLoginDate');
+        
+        if (savedTasks) {
+          try {
+            const parsedTasks = JSON.parse(savedTasks);
+            setTasks(parsedTasks.map((task: Task) => parseDates(task)));
+          } catch (e) {
+            console.error("Error parsing tasks:", e);
+            setTasks(INITIAL_TASKS);
+          }
+        }
+        
+        if (savedBadHabits) {
+          const parsedBadHabits = JSON.parse(savedBadHabits);
+          setBadHabits(parsedBadHabits);
+        }
+        
+        if (savedRewards) setRewards(JSON.parse(savedRewards));
+        if (savedPoints) setPoints(JSON.parse(savedPoints));
+        if (savedSpendablePoints) {
+          setSpendablePoints(JSON.parse(savedSpendablePoints));
+        } else if (savedPoints) {
+          setSpendablePoints(JSON.parse(savedPoints));
+        }
+        
+        if (savedStats) {
+          try {
+            const stats = JSON.parse(savedStats);
+            setRewardsClaimed(stats.rewardsClaimed || 0);
+            setBadHabitsAvoided(stats.badHabitsAvoided || badHabits.length);
+          } catch (e) {
+            console.error("Error parsing stats:", e);
+          }
+        }
+        
+        if (savedStreaks) {
+          try {
+            const parsedStreaks = JSON.parse(savedStreaks);
+            const streaks = parsedStreaks.map((streak: any) => parseDates(streak));
+            setDailyStreaks(streaks);
+            
+            const today = startOfDay(new Date());
+            const todayStreak = streaks.find((s: DailyStreak) => {
+              const streakDate = s.date instanceof Date 
+                ? s.date 
+                : (typeof s.date === 'string' ? parseISO(s.date) : null);
+              return streakDate && isSameDay(streakDate, today);
+            });
+            
+            if (todayStreak) {
+              setTodayPoints(todayStreak.points);
+              setTodayTasksCompleted(todayStreak.tasksCompleted);
+            }
+          } catch (e) {
+            console.error("Error parsing streaks:", e);
+            setDailyStreaks([]);
+          }
+        }
+        
+        const today = startOfDay(new Date()).toISOString();
+        if (lastLoginDate !== today) {
+          const currentLevel = calculateLevel(savedPoints ? JSON.parse(savedPoints) : 50, startOfDayLevel)[0];
+          setStartOfDayLevel(currentLevel);
+          setDailyXPEarned(0);
+          
+          localStorage.setItem('lastLoginDate', today);
+          
+          if (savedBadHabits) {
+            const parsedBadHabits = JSON.parse(savedBadHabits);
+            setBadHabits(parsedBadHabits);
+            setBadHabitsAvoided(parsedBadHabits.length);
+          } else {
+            setBadHabits(INITIAL_BAD_HABITS);
+            setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
+          }
+          
+          if (savedRewards) {
+            try {
+              const parsedRewards = JSON.parse(savedRewards);
+              const renewedRewards = parsedRewards.map((reward: Reward) => {
+                return { ...reward, claimed: false };
+              });
+              setRewards(renewedRewards);
+              setRewardsClaimed(0);
+              
+              localStorage.setItem('rewards', JSON.stringify(renewedRewards));
+              
+              const updatedStats = { 
+                rewardsClaimed: 0,
+                badHabitsAvoided: savedBadHabits ? JSON.parse(savedBadHabits).length : INITIAL_BAD_HABITS.length
+              };
+              localStorage.setItem('stats', JSON.stringify(updatedStats));
+              
+              toast.success("Your rewards have been renewed for a new day!", {
+                duration: 3000,
+              });
+            } catch (e) {
+              console.error("Error renewing rewards:", e);
+            }
+          }
+        } else {
+          if (savedStartOfDayLevel) setStartOfDayLevel(JSON.parse(savedStartOfDayLevel));
+          if (savedDailyXPEarned) setDailyXPEarned(JSON.parse(savedDailyXPEarned));
+        }
+        setProgressLoaded(true);
+      }
+    };
+
+    initializeProgress();
+  }, [user, authLoading, progressLoaded]);
+  
+  // Auto-save progress to cloud when user is authenticated
+  useEffect(() => {
+    if (user && progressLoaded) {
+      const saveToCloud = async () => {
+        await saveProgress({
+          tasks,
+          bad_habits: badHabits,
+          rewards,
+          points,
+          daily_xp_earned: dailyXPEarned
         });
-        
-        if (todayStreak) {
-          setTodayPoints(todayStreak.points);
-          setTodayTasksCompleted(todayStreak.tasksCompleted);
-        }
-      } catch (e) {
-        console.error("Error parsing streaks:", e);
-        setDailyStreaks([]);
-      }
+      };
+      
+      // Debounce saves to avoid too many requests
+      const timeoutId = setTimeout(saveToCloud, 1000);
+      return () => clearTimeout(timeoutId);
     }
-    
-    const today = startOfDay(new Date()).toISOString();
-    if (lastLoginDate !== today) {
-      // Reset for a new day
-      const currentLevel = calculateLevel(savedPoints ? JSON.parse(savedPoints) : 50, startOfDayLevel)[0];
-      setStartOfDayLevel(currentLevel);
-      setDailyXPEarned(0);
+  }, [user, progressLoaded, tasks, badHabits, rewards, points, dailyXPEarned]);
+  
+  // Save to localStorage if not authenticated
+  useEffect(() => {
+    if (!user && progressLoaded) {
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+      localStorage.setItem('badHabits', JSON.stringify(badHabits));
+      localStorage.setItem('rewards', JSON.stringify(rewards));
+      localStorage.setItem('points', JSON.stringify(points));
+      localStorage.setItem('spendablePoints', JSON.stringify(spendablePoints));
       
-      localStorage.setItem('lastLoginDate', today);
+      localStorage.setItem('stats', JSON.stringify({
+        rewardsClaimed,
+        badHabitsAvoided
+      }));
       
-      // Reset all "avoided" count to total bad habits
-      if (savedBadHabits) {
-        const parsedBadHabits = JSON.parse(savedBadHabits);
-        // Reset bad habits avoided to the total count of bad habits
-        setBadHabits(parsedBadHabits);
-        setBadHabitsAvoided(parsedBadHabits.length); // Reset the avoided count to full
-      } else {
-        setBadHabits(INITIAL_BAD_HABITS);
-        setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
-      }
-      
-      // Reset rewards to unclaimed
-      if (savedRewards) {
-        try {
-          const parsedRewards = JSON.parse(savedRewards);
-          const renewedRewards = parsedRewards.map((reward: Reward) => {
-            return { ...reward, claimed: false };
-          });
-          setRewards(renewedRewards);
-          setRewardsClaimed(0); // Reset claimed rewards counter
-          
-          // Update local storage with the reset rewards
-          localStorage.setItem('rewards', JSON.stringify(renewedRewards));
-          
-          // Update stats in localStorage to reflect reset reward count
-          const updatedStats = { 
-            rewardsClaimed: 0,
-            badHabitsAvoided: savedBadHabits ? JSON.parse(savedBadHabits).length : INITIAL_BAD_HABITS.length
-          };
-          localStorage.setItem('stats', JSON.stringify(updatedStats));
-          
-          toast.success("Your rewards have been renewed for a new day!", {
-            duration: 3000,
-          });
-        } catch (e) {
-          console.error("Error renewing rewards:", e);
-        }
-      }
-    } else {
-      if (savedStartOfDayLevel) setStartOfDayLevel(JSON.parse(savedStartOfDayLevel));
-      if (savedDailyXPEarned) setDailyXPEarned(JSON.parse(savedDailyXPEarned));
+      localStorage.setItem('dailyStreaks', JSON.stringify(dailyStreaks));
+      localStorage.setItem('startOfDayLevel', JSON.stringify(startOfDayLevel));
+      localStorage.setItem('dailyXPEarned', JSON.stringify(dailyXPEarned));
     }
-  }, []);
+  }, [user, progressLoaded, tasks, badHabits, rewards, points, spendablePoints, dailyStreaks, startOfDayLevel, dailyXPEarned, rewardsClaimed, badHabitsAvoided]);
   
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -244,27 +317,7 @@ const Index = () => {
     }
   }, []);
   
-  useEffect(() => {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-    localStorage.setItem('badHabits', JSON.stringify(badHabits));
-    localStorage.setItem('rewards', JSON.stringify(rewards));
-    localStorage.setItem('points', JSON.stringify(points));
-    localStorage.setItem('spendablePoints', JSON.stringify(spendablePoints));
-    
-    localStorage.setItem('stats', JSON.stringify({
-      rewardsClaimed,
-      badHabitsAvoided
-    }));
-    
-    localStorage.setItem('dailyStreaks', JSON.stringify(dailyStreaks));
-    
-    localStorage.setItem('startOfDayLevel', JSON.stringify(startOfDayLevel));
-    localStorage.setItem('dailyXPEarned', JSON.stringify(dailyXPEarned));
-  }, [tasks, badHabits, rewards, points, spendablePoints, dailyStreaks, startOfDayLevel, dailyXPEarned, rewardsClaimed, badHabitsAvoided]);
-  
-  /**
-   * Utility function: Update or add points/tasks for a specific date in streaks
-   */
+  // Utility function: Update or add points/tasks for a specific date in streaks
   const updateDailyStreakForDate = (targetDate: Date, addPoints: number, addTasksCompleted: number = 0) => {
     setDailyStreaks(prevStreaks => {
       // Improved date comparison that works with both Date objects and strings
@@ -301,10 +354,8 @@ const Index = () => {
     });
   };
 
-  /**
-   * Add points for a given date
-   * - "forDate" should be the date points were earned; defaults to today.
-   */
+  // Add points for a given date
+  // - "forDate" should be the date points were earned; defaults to today.
   const addPoints = (pointsToAdd: number, forDate: Date = startOfDay(new Date())) => {
     // Only apply daily XP and level restrictions if affecting today!
     const isToday = isSameDay(forDate, startOfDay(new Date()));
@@ -441,6 +492,18 @@ const Index = () => {
       setRewardsClaimed(prev => Math.max(0, prev - 1));
     }
   };
+  
+  // Show loading state
+  if (authLoading || !progressLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-theme-purple border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading your progress...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
