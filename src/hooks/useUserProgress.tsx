@@ -35,7 +35,17 @@ export function useUserProgress() {
         return null;
       }
 
-      return data || null;
+      if (!data) return null;
+
+      // Convert Json types to arrays and ensure proper structure
+      return {
+        points: data.points || 0,
+        level: data.level || 1,
+        tasks: Array.isArray(data.tasks) ? data.tasks : [],
+        bad_habits: Array.isArray(data.bad_habits) ? data.bad_habits : [],
+        rewards: Array.isArray(data.rewards) ? data.rewards : [],
+        daily_xp_earned: data.daily_xp_earned || 0
+      };
     } catch (error) {
       console.error('Error loading progress:', error);
       return null;
