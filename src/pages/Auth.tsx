@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Mail, Github, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const Auth = () => {
@@ -103,28 +103,6 @@ const Auth = () => {
       toast({
         title: "Authentication Error",
         description: errorMessage,
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleOAuthLogin = async (provider: 'google' | 'discord') => {
-    try {
-      setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: window.location.origin
-        }
-      });
-      
-      if (error) throw error;
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: `Failed to sign in with ${provider}. Please try again.`,
         variant: "destructive"
       });
     } finally {
@@ -247,38 +225,6 @@ const Auth = () => {
               </Button>
             </TabsContent>
           </Tabs>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
-
-          <div className="grid gap-3">
-            <Button
-              variant="outline"
-              onClick={() => handleOAuthLogin('google')}
-              disabled={loading}
-              className="w-full"
-            >
-              <Mail className="mr-2 h-4 w-4" />
-              Google
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handleOAuthLogin('discord')}
-              disabled={loading}
-              className="w-full"
-            >
-              <Github className="mr-2 h-4 w-4" />
-              Discord
-            </Button>
-          </div>
 
           <div className="mt-6 text-center">
             <Button
