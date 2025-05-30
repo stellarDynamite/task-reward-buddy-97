@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { Eye, EyeOff } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import EmailVerificationQR from '@/components/EmailVerificationQR';
 
 const Auth = () => {
   const [loading, setLoading] = useState(false);
@@ -16,6 +16,8 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showQRVerification, setShowQRVerification] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -74,18 +76,14 @@ const Auth = () => {
         });
         navigate('/');
       } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        
-        if (error) throw error;
+        // For signup, show QR verification instead of automatic signup
+        setPendingEmail(email);
+        setShowQRVerification(true);
         
         toast({
-          title: "Account created!",
-          description: "You have successfully signed up and are now logged in.",
+          title: "Verify Your Email",
+          description: "Please verify your email address to complete registration.",
         });
-        navigate('/');
       }
     } catch (error: any) {
       let errorMessage = "An unexpected error occurred";
@@ -109,6 +107,64 @@ const Auth = () => {
       setLoading(false);
     }
   };
+
+  const handleVerificationComplete = async () => {
+    try {
+      // Now actually create the account in Supabase
+      const { error } = await supabase.auth.signUp({
+        email: pendingEmail,
+        password,
+      });
+      
+      if (error) throw error;
+      
+      setShowQRVerification(false);
+      setPendingEmail('');
+      
+      toast({
+        title: "Account Created!",
+        description: "Your email has been verified and account created successfully.",
+      });
+      
+      // Reset form
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      
+      navigate('/');
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to create account after verification. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  if (showQRVerification) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-theme-purple-light/20 to-theme-purple/20 p-4">
+        <div className="space-y-4">
+          <EmailVerificationQR 
+            email={pendingEmail}
+            onVerificationComplete={handleVerificationComplete}
+          />
+          <div className="text-center">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowQRVerification(false);
+                setPendingEmail('');
+              }}
+              className="text-sm text-muted-foreground"
+            >
+              Back to Sign Up
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-theme-purple-light/20 to-theme-purple/20 p-4">
