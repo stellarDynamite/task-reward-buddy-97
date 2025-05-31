@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Mail } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import EmailVerificationQR from '@/components/EmailVerificationQR';
 
 const Auth = () => {
@@ -144,7 +145,15 @@ const Auth = () => {
   if (showQRVerification) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-theme-purple-light/20 to-theme-purple/20 p-4">
-        <div className="space-y-4">
+        <div className="space-y-4 w-full max-w-md">
+          <Alert className="mb-4">
+            <Mail className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Check your Gmail!</strong> A verification code has been sent to {pendingEmail}. 
+              Without verification, your account won't be accessible later.
+            </AlertDescription>
+          </Alert>
+          
           <EmailVerificationQR 
             email={pendingEmail}
             onVerificationComplete={handleVerificationComplete}
