@@ -77,16 +77,19 @@ const Auth = () => {
         const { error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/`
+          }
         });
         
         if (error) throw error;
         
         toast({
           title: "Account Created!",
-          description: "Your account has been created successfully. You can now sign in.",
+          description: "Please check your email and click the verification link to complete your signup.",
         });
         
-        // Reset form and switch to sign in tab
+        // Reset form
         setEmail('');
         setPassword('');
         setConfirmPassword('');

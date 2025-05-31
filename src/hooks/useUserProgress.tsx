@@ -60,24 +60,58 @@ export function useUserProgress() {
 
     try {
       setSyncing(true);
-      const { error } = await supabase
+      
+      // First try to update existing record
+      const { data: existingData, error: fetchError } = await supabase
         .from('user_progress')
-        .upsert({
-          user_id: user.id,
-          ...progressData,
-          updated_at: new Date().toISOString()
-        });
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
 
-      if (error) {
-        console.error('Error saving progress:', error);
-        toast({
-          title: "Sync Error",
-          description: "Failed to save progress to cloud. Your local progress is still safe.",
-          variant: "destructive"
-        });
+      if (existingData) {
+        // Update existing record
+        const { error } = await supabase
+          .from('user_progress')
+          .update({
+            ...progressData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Error updating progress:', error);
+          toast({
+            title: "Sync Error",
+            description: "Failed to save progress to cloud. Your local progress is still safe.",
+            variant: "destructive"
+          });
+        }
+      } else {
+        // Insert new record
+        const { error } = await supabase
+          .from('user_progress')
+          .insert({
+            user_id: user.id,
+            ...progressData,
+            updated_at: new Date().toISOString()
+          });
+
+        if (error) {
+          console.error('Error inserting progress:', error);
+          toast({
+            title: "Sync Error",
+            description: "Failed to save progress to cloud. Your local progress is still safe.",
+            variant: "destructive"
+          });
+        }
       }
     } catch (error) {
       console.error('Error saving progress:', error);
+      toast({
+        title: "Sync Error",
+        description: "Failed to save progress to cloud. Your local progress is still safe.",
+        variant: "destructive"
+      });
     } finally {
       setSyncing(false);
     }
