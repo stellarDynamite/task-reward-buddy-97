@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -32,7 +31,7 @@ const Auth = () => {
   const handleEmailAuth = async (type: 'signin' | 'signup') => {
     if (!email || !password) {
       toast({
-        title: "Error",
+        title: "Authentication needed",
         description: "Please fill in all fields",
         variant: "destructive"
       });
@@ -41,7 +40,7 @@ const Auth = () => {
 
     if (type === 'signup' && password !== confirmPassword) {
       toast({
-        title: "Error",
+        title: "Authentication needed",
         description: "Passwords do not match",
         variant: "destructive"
       });
@@ -50,7 +49,7 @@ const Auth = () => {
 
     if (password.length < 6) {
       toast({
-        title: "Error",
+        title: "Authentication needed",
         description: "Password must be at least 6 characters long",
         variant: "destructive"
       });
@@ -108,7 +107,7 @@ const Auth = () => {
       }
       
       toast({
-        title: "Authentication Error",
+        title: "Authentication needed",
         description: errorMessage,
         variant: "destructive"
       });
