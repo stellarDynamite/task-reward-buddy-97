@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { validateTaskTitle, validatePoints } from '@/utils/validation';
 
 export interface BadHabit {
   id: string;
@@ -38,22 +39,33 @@ const BadHabitList = ({ badHabits, onAddBadHabit, onTriggerBadHabit, onDeleteBad
   const [newBadHabitTitle, setNewBadHabitTitle] = useState('');
   const [badHabitPoints, setBadHabitPoints] = useState('10');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [titleError, setTitleError] = useState('');
   
   const handleAddBadHabit = () => {
-    if (newBadHabitTitle.trim() === '') {
-      toast.error('Please enter a bad habit title');
+    // Validate title
+    const titleValidation = validateTaskTitle(newBadHabitTitle);
+    if (!titleValidation.isValid) {
+      setTitleError(titleValidation.message || '');
+      return;
+    }
+
+    // Validate points
+    const pointsValidation = validatePoints(badHabitPoints);
+    if (!pointsValidation.isValid) {
+      toast.error(pointsValidation.message || 'Invalid points value');
       return;
     }
     
     const newBadHabit: BadHabit = {
       id: Date.now().toString(),
-      title: newBadHabitTitle,
-      points: parseInt(badHabitPoints),
+      title: titleValidation.sanitized || newBadHabitTitle,
+      points: pointsValidation.value || parseInt(badHabitPoints),
     };
     
     onAddBadHabit(newBadHabit);
     setNewBadHabitTitle('');
     setBadHabitPoints('10');
+    setTitleError('');
     setIsDialogOpen(false);
     toast.success('New bad habit added!');
   };
@@ -77,10 +89,21 @@ const BadHabitList = ({ badHabits, onAddBadHabit, onTriggerBadHabit, onDeleteBad
                 <Label htmlFor="badHabitTitle">Bad Habit Title</Label>
                 <Input
                   id="badHabitTitle"
-                  placeholder="Enter bad habit title..."
+                  placeholder="Enter bad habit title (max 100 characters)..."
                   value={newBadHabitTitle}
-                  onChange={(e) => setNewBadHabitTitle(e.target.value)}
+                  onChange={(e) => {
+                    setNewBadHabitTitle(e.target.value);
+                    setTitleError('');
+                  }}
+                  maxLength={100}
+                  className={titleError ? "border-destructive" : ""}
                 />
+                {titleError && (
+                  <div className="flex items-center gap-2 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    {titleError}
+                  </div>
+                )}
               </div>
               
               <div className="space-y-2">
@@ -102,7 +125,11 @@ const BadHabitList = ({ badHabits, onAddBadHabit, onTriggerBadHabit, onDeleteBad
               </div>
               
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                <Button variant="outline" onClick={() => {
+                  setIsDialogOpen(false);
+                  setTitleError('');
+                  setNewBadHabitTitle('');
+                }}>Cancel</Button>
                 <Button onClick={handleAddBadHabit}>Add Bad Habit</Button>
               </div>
             </div>
@@ -123,7 +150,7 @@ const BadHabitList = ({ badHabits, onAddBadHabit, onTriggerBadHabit, onDeleteBad
                   <div className="rounded-full bg-destructive/10 p-1">
                     <AlertCircle className="h-4 w-4 text-destructive" />
                   </div>
-                  <span>{badHabit.title}</span>
+                  <span className="break-words max-w-[200px]">{badHabit.title}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-1 bg-destructive/10 text-destructive text-xs font-medium rounded-full">

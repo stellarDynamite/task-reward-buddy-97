@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,8 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { validateEmail, validatePassword } from '@/utils/validation';
+import { authRateLimiter } from '@/utils/rateLimiter';
 
 const Auth = () => {
   const [loading, setLoading] = useState(false);
@@ -15,6 +18,8 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,40 +33,65 @@ const Auth = () => {
     checkUser();
   }, [navigate]);
 
-  const handleEmailAuth = async (type: 'signin' | 'signup') => {
-    if (!email || !password) {
-      toast({
-        title: "Authentication needed",
-        description: "Please fill in all fields",
-        variant: "destructive"
-      });
-      return;
+  const validateForm = (type: 'signin' | 'signup'): boolean => {
+    let isValid = true;
+    
+    // Reset errors
+    setEmailError('');
+    setPasswordError('');
+
+    // Validate email
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      setEmailError(emailValidation.message || '');
+      isValid = false;
     }
 
+    // Validate password
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      setPasswordError(passwordValidation.message || '');
+      isValid = false;
+    }
+
+    // Additional validation for signup
     if (type === 'signup' && password !== confirmPassword) {
+      setPasswordError('Passwords do not match');
+      isValid = false;
+    }
+
+    return isValid;
+  };
+
+  const handleEmailAuth = async (type: 'signin' | 'signup') => {
+    // Check rate limiting
+    const userIdentifier = email || 'anonymous';
+    if (!authRateLimiter.canAttempt(userIdentifier)) {
+      const remainingTime = authRateLimiter.getRemainingTime(userIdentifier);
+      const minutes = Math.ceil(remainingTime / (1000 * 60));
+      
       toast({
-        title: "Authentication needed",
-        description: "Passwords do not match",
+        title: "Too many attempts",
+        description: `Please wait ${minutes} minutes before trying again`,
         variant: "destructive"
       });
       return;
     }
 
-    if (password.length < 6) {
-      toast({
-        title: "Authentication needed",
-        description: "Password must be at least 6 characters long",
-        variant: "destructive"
-      });
+    // Validate form
+    if (!validateForm(type)) {
       return;
     }
 
     try {
       setLoading(true);
       
+      // Record attempt for rate limiting
+      authRateLimiter.recordAttempt(userIdentifier);
+      
       if (type === 'signin') {
         const { error } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim().toLowerCase(),
           password,
         });
         
@@ -74,7 +104,7 @@ const Auth = () => {
         navigate('/');
       } else {
         const { error } = await supabase.auth.signUp({
-          email,
+          email: email.trim().toLowerCase(),
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/`
@@ -92,6 +122,8 @@ const Auth = () => {
         setEmail('');
         setPassword('');
         setConfirmPassword('');
+        setEmailError('');
+        setPasswordError('');
       }
     } catch (error: any) {
       let errorMessage = "An unexpected error occurred";
@@ -102,6 +134,8 @@ const Auth = () => {
         errorMessage = "An account with this email already exists";
       } else if (error.message.includes("Email not confirmed")) {
         errorMessage = "Please check your email and confirm your account";
+      } else if (error.message.includes("signup_disabled")) {
+        errorMessage = "New registrations are currently disabled";
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -142,9 +176,19 @@ const Auth = () => {
                   type="email"
                   placeholder="Enter your email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setEmailError('');
+                  }}
                   disabled={loading}
+                  className={emailError ? "border-destructive" : ""}
                 />
+                {emailError && (
+                  <div className="flex items-center gap-2 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    {emailError}
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="signin-password">Password</Label>
@@ -154,8 +198,12 @@ const Auth = () => {
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setPasswordError('');
+                    }}
                     disabled={loading}
+                    className={passwordError ? "border-destructive" : ""}
                   />
                   <Button
                     type="button"
@@ -167,6 +215,12 @@ const Auth = () => {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
+                {passwordError && (
+                  <div className="flex items-center gap-2 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    {passwordError}
+                  </div>
+                )}
               </div>
               <Button 
                 onClick={() => handleEmailAuth('signin')} 
@@ -185,9 +239,19 @@ const Auth = () => {
                   type="email"
                   placeholder="Enter your email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setEmailError('');
+                  }}
                   disabled={loading}
+                  className={emailError ? "border-destructive" : ""}
                 />
+                {emailError && (
+                  <div className="flex items-center gap-2 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    {emailError}
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="signup-password">Password</Label>
@@ -195,10 +259,14 @@ const Auth = () => {
                   <Input
                     id="signup-password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Create a password"
+                    placeholder="Create a password (8+ chars, uppercase, lowercase, number, special char)"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setPasswordError('');
+                    }}
                     disabled={loading}
+                    className={passwordError ? "border-destructive" : ""}
                   />
                   <Button
                     type="button"
@@ -210,6 +278,12 @@ const Auth = () => {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
+                {passwordError && (
+                  <div className="flex items-center gap-2 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    {passwordError}
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirm-password">Confirm Password</Label>
