@@ -70,7 +70,7 @@ export const sanitizeInput = (input: string, maxLength: number = 100): string =>
     .slice(0, maxLength); // Limit length
 };
 
-export const validateTaskTitle = (title: string): { isValid: boolean; message?: string } => {
+export const validateTaskTitle = (title: string): { isValid: boolean; message?: string; sanitized?: string } => {
   const sanitized = sanitizeInput(title, 100);
   
   if (!sanitized) {
