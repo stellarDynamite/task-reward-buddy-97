@@ -9,6 +9,7 @@ export interface UserProgressData {
   level: number;
   tasks: any[];
   bad_habits: any[];
+  good_habits: any[];
   rewards: any[];
   daily_xp_earned: number;
 }
@@ -43,6 +44,7 @@ export function useUserProgress() {
         level: data.level || 1,
         tasks: Array.isArray(data.tasks) ? data.tasks : [],
         bad_habits: Array.isArray(data.bad_habits) ? data.bad_habits : [],
+        good_habits: Array.isArray(data.good_habits) ? data.good_habits : [],
         rewards: Array.isArray(data.rewards) ? data.rewards : [],
         daily_xp_earned: data.daily_xp_earned || 0
       };

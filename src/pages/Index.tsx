@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Task } from '@/components/TaskList';
 import { BadHabit } from '@/components/BadHabitList';
+import { GoodHabit } from '@/components/GoodHabitList';
 import { Reward } from '@/components/RewardList';
 import TaskList from '@/components/TaskList';
 import BadHabitList from '@/components/BadHabitList';
+import GoodHabitList from '@/components/GoodHabitList';
 import RewardList from '@/components/RewardList';
 import Dashboard from '@/components/Dashboard';
 import Header, { TabValue } from '@/components/Header';
@@ -25,6 +27,11 @@ const INITIAL_TASKS: Task[] = [
 const INITIAL_BAD_HABITS: BadHabit[] = [
   { id: '1', title: 'Procrastinating', points: 10 },
   { id: '2', title: 'Skipping meals', points: 20 },
+];
+
+const INITIAL_GOOD_HABITS: GoodHabit[] = [
+  { id: '1', title: 'Drink 8 glasses of water', points: 10, completed: false },
+  { id: '2', title: 'Read for 30 minutes', points: 15, completed: false },
 ];
 
 const INITIAL_REWARDS: Reward[] = [
@@ -94,6 +101,7 @@ const Index = () => {
   
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
   const [badHabits, setBadHabits] = useState<BadHabit[]>(INITIAL_BAD_HABITS);
+  const [goodHabits, setGoodHabits] = useState<GoodHabit[]>(INITIAL_GOOD_HABITS);
   const [rewards, setRewards] = useState<Reward[]>(INITIAL_REWARDS);
   const [points, setPoints] = useState(50);
   const [spendablePoints, setSpendablePoints] = useState(50);
@@ -101,6 +109,7 @@ const Index = () => {
   
   // Stats - explicitly track these separately
   const tasksCompleted = tasks.filter(task => task.completed).length;
+  const goodHabitsCompleted = goodHabits.filter(habit => habit.completed).length;
   const [badHabitsAvoided, setBadHabitsAvoided] = useState(badHabits.length);
   const [rewardsClaimed, setRewardsClaimed] = useState(0);
   
@@ -130,6 +139,7 @@ const Index = () => {
           console.log('Loaded cloud progress:', cloudProgress);
           setTasks(cloudProgress.tasks || INITIAL_TASKS);
           setBadHabits(cloudProgress.bad_habits || INITIAL_BAD_HABITS);
+          setGoodHabits(cloudProgress.good_habits || INITIAL_GOOD_HABITS);
           setRewards(cloudProgress.rewards || INITIAL_REWARDS);
           setPoints(cloudProgress.points || 50);
           setSpendablePoints(cloudProgress.points || 50);
@@ -142,6 +152,7 @@ const Index = () => {
           await saveProgress({
             tasks,
             bad_habits: badHabits,
+            good_habits: goodHabits,
             rewards,
             points,
             daily_xp_earned: dailyXPEarned
@@ -154,6 +165,7 @@ const Index = () => {
         // ... keep existing code (localStorage loading logic)
         const savedTasks = localStorage.getItem('tasks');
         const savedBadHabits = localStorage.getItem('badHabits');
+        const savedGoodHabits = localStorage.getItem('goodHabits');
         const savedRewards = localStorage.getItem('rewards');
         const savedPoints = localStorage.getItem('points');
         const savedSpendablePoints = localStorage.getItem('spendablePoints');
@@ -176,6 +188,11 @@ const Index = () => {
         if (savedBadHabits) {
           const parsedBadHabits = JSON.parse(savedBadHabits);
           setBadHabits(parsedBadHabits);
+        }
+        
+        if (savedGoodHabits) {
+          const parsedGoodHabits = JSON.parse(savedGoodHabits);
+          setGoodHabits(parsedGoodHabits);
         }
         
         if (savedRewards) setRewards(JSON.parse(savedRewards));
@@ -237,6 +254,19 @@ const Index = () => {
             setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
           }
           
+          // Reset good habits daily
+          if (savedGoodHabits) {
+            const parsedGoodHabits = JSON.parse(savedGoodHabits);
+            const renewedGoodHabits = parsedGoodHabits.map((habit: GoodHabit) => ({
+              ...habit,
+              completed: false
+            }));
+            setGoodHabits(renewedGoodHabits);
+            localStorage.setItem('goodHabits', JSON.stringify(renewedGoodHabits));
+          } else {
+            setGoodHabits(INITIAL_GOOD_HABITS);
+          }
+          
           if (savedRewards) {
             try {
               const parsedRewards = JSON.parse(savedRewards);
@@ -254,7 +284,7 @@ const Index = () => {
               };
               localStorage.setItem('stats', JSON.stringify(updatedStats));
               
-              toast.success("Your rewards have been renewed for a new day!", {
+              toast.success("Your rewards and good habits have been renewed for a new day!", {
                 duration: 3000,
               });
             } catch (e) {
@@ -279,6 +309,7 @@ const Index = () => {
         await saveProgress({
           tasks,
           bad_habits: badHabits,
+          good_habits: goodHabits,
           rewards,
           points,
           daily_xp_earned: dailyXPEarned
@@ -289,13 +320,14 @@ const Index = () => {
       const timeoutId = setTimeout(saveToCloud, 1000);
       return () => clearTimeout(timeoutId);
     }
-  }, [user, progressLoaded, tasks, badHabits, rewards, points, dailyXPEarned]);
+  }, [user, progressLoaded, tasks, badHabits, goodHabits, rewards, points, dailyXPEarned]);
   
   // Save to localStorage if not authenticated
   useEffect(() => {
     if (!user && progressLoaded) {
       localStorage.setItem('tasks', JSON.stringify(tasks));
       localStorage.setItem('badHabits', JSON.stringify(badHabits));
+      localStorage.setItem('goodHabits', JSON.stringify(goodHabits));
       localStorage.setItem('rewards', JSON.stringify(rewards));
       localStorage.setItem('points', JSON.stringify(points));
       localStorage.setItem('spendablePoints', JSON.stringify(spendablePoints));
@@ -309,7 +341,7 @@ const Index = () => {
       localStorage.setItem('startOfDayLevel', JSON.stringify(startOfDayLevel));
       localStorage.setItem('dailyXPEarned', JSON.stringify(dailyXPEarned));
     }
-  }, [user, progressLoaded, tasks, badHabits, rewards, points, spendablePoints, dailyStreaks, startOfDayLevel, dailyXPEarned, rewardsClaimed, badHabitsAvoided]);
+  }, [user, progressLoaded, tasks, badHabits, goodHabits, rewards, points, spendablePoints, dailyStreaks, startOfDayLevel, dailyXPEarned, rewardsClaimed, badHabitsAvoided]);
   
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -403,6 +435,17 @@ const Index = () => {
     console.log(`Task completed: ${task.title} - Added ${earnedPoints} points and updated streak`);
   };
   
+  // --- Good Habit Completion ---
+  const handleCompleteGoodHabit = (id: string) => {
+    const goodHabit = goodHabits.find(h => h.id === id);
+    if (!goodHabit || goodHabit.completed) return;
+    
+    const earnedPoints = addPoints(goodHabit.points);
+    setGoodHabits(goodHabits.map(h => (h.id === id ? { ...h, completed: true } : h)));
+    
+    console.log(`Good habit completed: ${goodHabit.title} - Added ${earnedPoints} points`);
+  };
+  
   // --- Bad Habit Tracking ---
   const handleTriggerBadHabit = (id: string) => {
     const badHabit = badHabits.find(h => h.id === id);
@@ -456,20 +499,24 @@ const Index = () => {
     setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
   };
   
+  // --- Good Habit Management ---
+  const handleAddGoodHabit = (goodHabit: GoodHabit) => {
+    setGoodHabits([...goodHabits, goodHabit]);
+  };
+  
+  const handleDeleteGoodHabit = (id: string) => {
+    setGoodHabits(goodHabits.filter(h => h.id !== id));
+  };
+  
   // --- Bad Habit Management ---
   const handleAddBadHabit = (badHabit: BadHabit) => {
     setBadHabits([...badHabits, badHabit]);
-    // When adding a new bad habit, increase the "avoided" count
     setBadHabitsAvoided(prev => prev + 1);
   };
   
   const handleDeleteBadHabit = (id: string) => {
-    // Check if the bad habit to delete is still being "avoided"
     const isAvoided = badHabitsAvoided > 0 && badHabitsAvoided === badHabits.length;
-    
     setBadHabits(badHabits.filter(h => h.id !== id));
-    
-    // If all bad habits were being avoided, decrement the count when one is deleted
     if (isAvoided) {
       setBadHabitsAvoided(prev => Math.max(0, prev - 1));
     }
@@ -481,13 +528,11 @@ const Index = () => {
   };
   
   const handleDeleteReward = (id: string) => {
-    // Check if the reward being deleted was claimed
     const reward = rewards.find(r => r.id === id);
     const wasClaimed = reward?.claimed || false;
     
     setRewards(rewards.filter(r => r.id !== id));
     
-    // If a claimed reward is being deleted, decrement the count
     if (wasClaimed) {
       setRewardsClaimed(prev => Math.max(0, prev - 1));
     }
@@ -541,6 +586,15 @@ const Index = () => {
         />
       )}
       
+      {activeTab === 'good-habits' && (
+        <GoodHabitList
+          goodHabits={goodHabits}
+          onAddGoodHabit={handleAddGoodHabit}
+          onCompleteGoodHabit={handleCompleteGoodHabit}
+          onDeleteGoodHabit={handleDeleteGoodHabit}
+        />
+      )}
+      
       {activeTab === 'bad-habits' && (
         <BadHabitList
           badHabits={badHabits}
@@ -553,7 +607,7 @@ const Index = () => {
       {activeTab === 'rewards' && (
         <RewardList
           rewards={rewards}
-          userPoints={spendablePoints} // Use spendable points for the rewards section
+          userPoints={spendablePoints}
           onAddReward={handleAddReward}
           onClaimReward={handleClaimReward}
           onDeleteReward={handleDeleteReward}
