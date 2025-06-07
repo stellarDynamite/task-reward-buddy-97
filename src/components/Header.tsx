@@ -22,6 +22,10 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
     navigate('/auth');
   };
 
+  const handleLogin = () => {
+    navigate('/auth');
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -36,9 +40,13 @@ const Header = ({ activeTab, setActiveTab, points }: HeaderProps) => {
               <span className="font-semibold">{points} XP</span>
             </CardContent>
           </Card>
-          {user && (
+          {user ? (
             <Button variant="outline" onClick={handleLogout}>
               Logout
+            </Button>
+          ) : (
+            <Button onClick={handleLogin}>
+              Login / Sign Up
             </Button>
           )}
         </div>
