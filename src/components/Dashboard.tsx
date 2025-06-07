@@ -48,7 +48,7 @@ const Dashboard = ({
   const dailyXPProgress = Math.min((dailyXPEarned / MAX_DAILY_XP) * 100, 100);
   
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mt-8">
       <Card className="bg-gradient-to-r from-theme-purple-light to-theme-purple border-0">
         <CardHeader className="pb-2">
           <CardTitle className="text-white flex items-center gap-2">
