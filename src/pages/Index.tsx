@@ -255,7 +255,7 @@ const Index = () => {
             setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
           }
           
-          // Reset good habits daily
+          // Reset good habits daily - ENSURE they are reset to completed: false
           if (savedGoodHabits) {
             const parsedGoodHabits = JSON.parse(savedGoodHabits);
             const renewedGoodHabits = parsedGoodHabits.map((habit: GoodHabit) => ({
@@ -264,8 +264,15 @@ const Index = () => {
             }));
             setGoodHabits(renewedGoodHabits);
             localStorage.setItem('goodHabits', JSON.stringify(renewedGoodHabits));
+            console.log('Good habits reset for new day:', renewedGoodHabits);
           } else {
-            setGoodHabits(INITIAL_GOOD_HABITS);
+            const resetInitialGoodHabits = INITIAL_GOOD_HABITS.map(habit => ({
+              ...habit,
+              completed: false
+            }));
+            setGoodHabits(resetInitialGoodHabits);
+            localStorage.setItem('goodHabits', JSON.stringify(resetInitialGoodHabits));
+            console.log('Initial good habits set with completed: false');
           }
           
           if (savedRewards) {
