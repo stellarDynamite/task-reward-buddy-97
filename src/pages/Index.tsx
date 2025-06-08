@@ -245,10 +245,11 @@ const Index = () => {
           
           localStorage.setItem('lastLoginDate', today);
           
+          // Reset bad habits daily - each bad habit gets a fresh start
           if (savedBadHabits) {
             const parsedBadHabits = JSON.parse(savedBadHabits);
             setBadHabits(parsedBadHabits);
-            setBadHabitsAvoided(parsedBadHabits.length);
+            setBadHabitsAvoided(parsedBadHabits.length); // Reset to full count each day
           } else {
             setBadHabits(INITIAL_BAD_HABITS);
             setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
@@ -284,7 +285,7 @@ const Index = () => {
               };
               localStorage.setItem('stats', JSON.stringify(updatedStats));
               
-              toast.success("Your rewards and good habits have been renewed for a new day!", {
+              toast.success("Your rewards, good habits, and bad habits have been renewed for a new day!", {
                 duration: 3000,
               });
             } catch (e) {
