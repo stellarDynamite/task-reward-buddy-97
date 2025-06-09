@@ -125,6 +125,90 @@ const Index = () => {
   
   // Calculate level information with floor at startOfDayLevel
   const [level, pointsToNextLevel, pointsNeededForNextLevel] = calculateLevel(points, startOfDayLevel);
+
+  // Helper function to perform daily reset
+  const performDailyReset = (savedData: any) => {
+    console.log('Performing daily reset...');
+    
+    // Reset bad habits - they get a fresh start each day
+    if (savedData.badHabits) {
+      const parsedBadHabits = Array.isArray(savedData.badHabits) ? savedData.badHabits : JSON.parse(savedData.badHabits);
+      setBadHabits(parsedBadHabits);
+      setBadHabitsAvoided(parsedBadHabits.length); // Reset to full count each day
+      console.log('Bad habits reset for new day:', parsedBadHabits);
+    } else {
+      setBadHabits(INITIAL_BAD_HABITS);
+      setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
+    }
+    
+    // Reset good habits - ENSURE they are reset to completed: false
+    if (savedData.goodHabits) {
+      const parsedGoodHabits = Array.isArray(savedData.goodHabits) ? savedData.goodHabits : JSON.parse(savedData.goodHabits);
+      const renewedGoodHabits = parsedGoodHabits.map((habit: GoodHabit) => ({
+        ...habit,
+        completed: false
+      }));
+      setGoodHabits(renewedGoodHabits);
+      console.log('Good habits reset for new day:', renewedGoodHabits);
+      
+      // Save to localStorage for non-authenticated users
+      if (!user) {
+        localStorage.setItem('goodHabits', JSON.stringify(renewedGoodHabits));
+      }
+    } else {
+      const resetInitialGoodHabits = INITIAL_GOOD_HABITS.map(habit => ({
+        ...habit,
+        completed: false
+      }));
+      setGoodHabits(resetInitialGoodHabits);
+      console.log('Initial good habits set with completed: false');
+      
+      // Save to localStorage for non-authenticated users
+      if (!user) {
+        localStorage.setItem('goodHabits', JSON.stringify(resetInitialGoodHabits));
+      }
+    }
+    
+    // Reset rewards
+    if (savedData.rewards) {
+      try {
+        const parsedRewards = Array.isArray(savedData.rewards) ? savedData.rewards : JSON.parse(savedData.rewards);
+        const renewedRewards = parsedRewards.map((reward: Reward) => {
+          return { ...reward, claimed: false };
+        });
+        setRewards(renewedRewards);
+        setRewardsClaimed(0);
+        
+        // Save to localStorage for non-authenticated users
+        if (!user) {
+          localStorage.setItem('rewards', JSON.stringify(renewedRewards));
+          const updatedStats = { 
+            rewardsClaimed: 0,
+            badHabitsAvoided: savedData.badHabits ? (Array.isArray(savedData.badHabits) ? savedData.badHabits : JSON.parse(savedData.badHabits)).length : INITIAL_BAD_HABITS.length
+          };
+          localStorage.setItem('stats', JSON.stringify(updatedStats));
+        }
+      } catch (e) {
+        console.error("Error renewing rewards:", e);
+      }
+    }
+    
+    // Reset daily XP and level tracking
+    const currentLevel = calculateLevel(savedData.points || 50, startOfDayLevel)[0];
+    setStartOfDayLevel(currentLevel);
+    setDailyXPEarned(0);
+    
+    // Show notification
+    toast.success("Your habits have been reset for a new day! 🌅", {
+      duration: 4000,
+    });
+    
+    // Update last login date
+    const today = startOfDay(new Date()).toISOString();
+    if (!user) {
+      localStorage.setItem('lastLoginDate', today);
+    }
+  };
   
   // Load progress when user logs in
   useEffect(() => {
@@ -137,13 +221,37 @@ const Index = () => {
         
         if (cloudProgress) {
           console.log('Loaded cloud progress:', cloudProgress);
-          setTasks(cloudProgress.tasks || INITIAL_TASKS);
-          setBadHabits(cloudProgress.bad_habits || INITIAL_BAD_HABITS);
-          setGoodHabits(cloudProgress.good_habits || INITIAL_GOOD_HABITS);
-          setRewards(cloudProgress.rewards || INITIAL_REWARDS);
-          setPoints(cloudProgress.points || 50);
-          setSpendablePoints(cloudProgress.points || 50);
-          setDailyXPEarned(cloudProgress.daily_xp_earned || 0);
+          
+          // Check if it's a new day for authenticated users
+          const today = startOfDay(new Date()).toISOString().split('T')[0];
+          const lastResetDate = localStorage.getItem('lastLoginDate');
+          
+          if (lastResetDate !== today) {
+            // Perform daily reset for authenticated users
+            performDailyReset({
+              badHabits: cloudProgress.bad_habits,
+              goodHabits: cloudProgress.good_habits,
+              rewards: cloudProgress.rewards,
+              points: cloudProgress.points
+            });
+            
+            // Set other data normally
+            setTasks(cloudProgress.tasks || INITIAL_TASKS);
+            setPoints(cloudProgress.points || 50);
+            setSpendablePoints(cloudProgress.points || 50);
+            setDailyXPEarned(0); // Reset daily XP
+            
+            localStorage.setItem('lastLoginDate', today);
+          } else {
+            // Not a new day, load normally
+            setTasks(cloudProgress.tasks || INITIAL_TASKS);
+            setBadHabits(cloudProgress.bad_habits || INITIAL_BAD_HABITS);
+            setGoodHabits(cloudProgress.good_habits || INITIAL_GOOD_HABITS);
+            setRewards(cloudProgress.rewards || INITIAL_REWARDS);
+            setPoints(cloudProgress.points || 50);
+            setSpendablePoints(cloudProgress.points || 50);
+            setDailyXPEarned(cloudProgress.daily_xp_earned || 0);
+          }
           
           toast.success("Progress loaded from your account!", { duration: 3000 });
         } else {
@@ -162,7 +270,7 @@ const Index = () => {
       } else if (!user) {
         // Load from localStorage if not authenticated
         console.log('Loading progress from localStorage...');
-        // ... keep existing code (localStorage loading logic)
+        
         const savedTasks = localStorage.getItem('tasks');
         const savedBadHabits = localStorage.getItem('badHabits');
         const savedGoodHabits = localStorage.getItem('goodHabits');
@@ -185,17 +293,6 @@ const Index = () => {
           }
         }
         
-        if (savedBadHabits) {
-          const parsedBadHabits = JSON.parse(savedBadHabits);
-          setBadHabits(parsedBadHabits);
-        }
-        
-        if (savedGoodHabits) {
-          const parsedGoodHabits = JSON.parse(savedGoodHabits);
-          setGoodHabits(parsedGoodHabits);
-        }
-        
-        if (savedRewards) setRewards(JSON.parse(savedRewards));
         if (savedPoints) setPoints(JSON.parse(savedPoints));
         if (savedSpendablePoints) {
           setSpendablePoints(JSON.parse(savedSpendablePoints));
@@ -239,70 +336,31 @@ const Index = () => {
         
         const today = startOfDay(new Date()).toISOString();
         if (lastLoginDate !== today) {
-          const currentLevel = calculateLevel(savedPoints ? JSON.parse(savedPoints) : 50, startOfDayLevel)[0];
-          setStartOfDayLevel(currentLevel);
-          setDailyXPEarned(0);
-          
-          localStorage.setItem('lastLoginDate', today);
-          
-          // Reset bad habits daily - each bad habit gets a fresh start
+          // New day - perform daily reset
+          performDailyReset({
+            badHabits: savedBadHabits,
+            goodHabits: savedGoodHabits,
+            rewards: savedRewards,
+            points: savedPoints ? JSON.parse(savedPoints) : 50
+          });
+        } else {
+          // Same day - load normally
           if (savedBadHabits) {
             const parsedBadHabits = JSON.parse(savedBadHabits);
             setBadHabits(parsedBadHabits);
-            setBadHabitsAvoided(parsedBadHabits.length); // Reset to full count each day
-          } else {
-            setBadHabits(INITIAL_BAD_HABITS);
-            setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
           }
           
-          // Reset good habits daily - ENSURE they are reset to completed: false
           if (savedGoodHabits) {
             const parsedGoodHabits = JSON.parse(savedGoodHabits);
-            const renewedGoodHabits = parsedGoodHabits.map((habit: GoodHabit) => ({
-              ...habit,
-              completed: false
-            }));
-            setGoodHabits(renewedGoodHabits);
-            localStorage.setItem('goodHabits', JSON.stringify(renewedGoodHabits));
-            console.log('Good habits reset for new day:', renewedGoodHabits);
-          } else {
-            const resetInitialGoodHabits = INITIAL_GOOD_HABITS.map(habit => ({
-              ...habit,
-              completed: false
-            }));
-            setGoodHabits(resetInitialGoodHabits);
-            localStorage.setItem('goodHabits', JSON.stringify(resetInitialGoodHabits));
-            console.log('Initial good habits set with completed: false');
+            setGoodHabits(parsedGoodHabits);
           }
           
-          if (savedRewards) {
-            try {
-              const parsedRewards = JSON.parse(savedRewards);
-              const renewedRewards = parsedRewards.map((reward: Reward) => {
-                return { ...reward, claimed: false };
-              });
-              setRewards(renewedRewards);
-              setRewardsClaimed(0);
-              
-              localStorage.setItem('rewards', JSON.stringify(renewedRewards));
-              
-              const updatedStats = { 
-                rewardsClaimed: 0,
-                badHabitsAvoided: savedBadHabits ? JSON.parse(savedBadHabits).length : INITIAL_BAD_HABITS.length
-              };
-              localStorage.setItem('stats', JSON.stringify(updatedStats));
-              
-              toast.success("Your rewards, good habits, and bad habits have been renewed for a new day!", {
-                duration: 3000,
-              });
-            } catch (e) {
-              console.error("Error renewing rewards:", e);
-            }
-          }
-        } else {
+          if (savedRewards) setRewards(JSON.parse(savedRewards));
+          
           if (savedStartOfDayLevel) setStartOfDayLevel(JSON.parse(savedStartOfDayLevel));
           if (savedDailyXPEarned) setDailyXPEarned(JSON.parse(savedDailyXPEarned));
         }
+        
         setProgressLoaded(true);
       }
     };
