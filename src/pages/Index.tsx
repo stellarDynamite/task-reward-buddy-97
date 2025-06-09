@@ -113,6 +113,9 @@ const Index = () => {
   const [badHabitsAvoided, setBadHabitsAvoided] = useState(badHabits.length);
   const [rewardsClaimed, setRewardsClaimed] = useState(0);
   
+  // Track which bad habits have been triggered today
+  const [triggeredBadHabitsToday, setTriggeredBadHabitsToday] = useState<Set<string>>(new Set());
+  
   // Daily Streak tracking
   const [dailyStreaks, setDailyStreaks] = useState<DailyStreak[]>([]);
   const [todayPoints, setTodayPoints] = useState(0);
@@ -129,6 +132,9 @@ const Index = () => {
   // Helper function to perform daily reset
   const performDailyReset = (savedData: any) => {
     console.log('Performing daily reset...');
+    
+    // Reset triggered bad habits tracking
+    setTriggeredBadHabitsToday(new Set());
     
     // Reset bad habits - they get a fresh start each day
     if (savedData.badHabits) {
@@ -241,6 +247,7 @@ const Index = () => {
     const todayString = startOfDay(new Date()).toISOString();
     if (!user) {
       localStorage.setItem('lastLoginDate', todayString);
+      localStorage.setItem('triggeredBadHabitsToday', JSON.stringify([]));
     }
   };
   
@@ -410,6 +417,28 @@ const Index = () => {
     initializeProgress();
   }, [user, authLoading, progressLoaded]);
   
+  // Load triggered bad habits from localStorage
+  useEffect(() => {
+    if (!user && progressLoaded) {
+      const savedTriggeredBadHabits = localStorage.getItem('triggeredBadHabitsToday');
+      if (savedTriggeredBadHabits) {
+        try {
+          const parsed = JSON.parse(savedTriggeredBadHabits);
+          setTriggeredBadHabitsToday(new Set(parsed));
+        } catch (e) {
+          console.error("Error parsing triggered bad habits:", e);
+        }
+      }
+    }
+  }, [user, progressLoaded]);
+  
+  // Save triggered bad habits to localStorage
+  useEffect(() => {
+    if (!user && progressLoaded) {
+      localStorage.setItem('triggeredBadHabitsToday', JSON.stringify(Array.from(triggeredBadHabitsToday)));
+    }
+  }, [user, progressLoaded, triggeredBadHabitsToday]);
+  
   // Auto-save progress to cloud when user is authenticated
   useEffect(() => {
     if (user && progressLoaded) {
@@ -568,16 +597,18 @@ const Index = () => {
     const badHabit = badHabits.find(h => h.id === id);
     if (!badHabit) return;
     
-    // Subtract points for triggering a bad habit
+    // Subtract points for triggering a bad habit (always deduct points)
     const lostPoints = -badHabit.points; // Negative points
-    
-    // Update both total XP and spendable points when bad habits are triggered
     addPoints(lostPoints);
     
-    // Decrement the "avoided" count
-    setBadHabitsAvoided(prev => Math.max(0, prev - 1));
-    
-    console.log(`Bad habit triggered: ${badHabit.title} - Lost ${Math.abs(lostPoints)} points`);
+    // Only affect the "avoided" count if this is the first time today
+    if (!triggeredBadHabitsToday.has(id)) {
+      setBadHabitsAvoided(prev => Math.max(0, prev - 1));
+      setTriggeredBadHabitsToday(prev => new Set([...prev, id]));
+      console.log(`Bad habit triggered for first time today: ${badHabit.title} - Lost ${Math.abs(lostPoints)} points and decreased avoided count`);
+    } else {
+      console.log(`Bad habit triggered again: ${badHabit.title} - Lost ${Math.abs(lostPoints)} points but avoided count unchanged`);
+    }
   };
 
   // --- Reward Claiming ---
@@ -715,6 +746,7 @@ const Index = () => {
       {activeTab === 'bad-habits' && (
         <BadHabitList
           badHabits={badHabits}
+          triggeredBadHabitsToday={triggeredBadHabitsToday}
           onAddBadHabit={handleAddBadHabit}
           onTriggerBadHabit={handleTriggerBadHabit}
           onDeleteBadHabit={handleDeleteBadHabit}

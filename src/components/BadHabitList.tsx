@@ -30,12 +30,19 @@ export interface BadHabit {
 
 interface BadHabitListProps {
   badHabits: BadHabit[];
+  triggeredBadHabitsToday: Set<string>;
   onAddBadHabit: (badHabit: BadHabit) => void;
   onTriggerBadHabit: (id: string) => void;
   onDeleteBadHabit: (id: string) => void;
 }
 
-const BadHabitList = ({ badHabits, onAddBadHabit, onTriggerBadHabit, onDeleteBadHabit }: BadHabitListProps) => {
+const BadHabitList = ({ 
+  badHabits, 
+  triggeredBadHabitsToday, 
+  onAddBadHabit, 
+  onTriggerBadHabit, 
+  onDeleteBadHabit 
+}: BadHabitListProps) => {
   const [newBadHabitTitle, setNewBadHabitTitle] = useState('');
   const [badHabitPoints, setBadHabitPoints] = useState('10');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -143,42 +150,51 @@ const BadHabitList = ({ badHabits, onAddBadHabit, onTriggerBadHabit, onDeleteBad
         </div>
       ) : (
         <div className="space-y-3">
-          {badHabits.map((badHabit) => (
-            <Card key={badHabit.id} className="task-card border-destructive/20">
-              <CardContent className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-destructive/10 p-1">
-                    <AlertCircle className="h-4 w-4 text-destructive" />
+          {badHabits.map((badHabit) => {
+            const isTriggeredToday = triggeredBadHabitsToday.has(badHabit.id);
+            
+            return (
+              <Card key={badHabit.id} className={`task-card ${isTriggeredToday ? 'border-destructive bg-destructive/5' : 'border-destructive/20'}`}>
+                <CardContent className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-full bg-destructive/10 p-1">
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                    </div>
+                    <span className="break-words max-w-[200px]">{badHabit.title}</span>
+                    {isTriggeredToday && (
+                      <span className="text-xs text-destructive/70 font-medium">
+                        (triggered today)
+                      </span>
+                    )}
                   </div>
-                  <span className="break-words max-w-[200px]">{badHabit.title}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-1 bg-destructive/10 text-destructive text-xs font-medium rounded-full">
-                    -{badHabit.points} pts
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      onTriggerBadHabit(badHabit.id);
-                      toast.error(`Bad habit triggered: -${badHabit.points} points`);
-                    }}
-                    className="text-sm h-8 border-destructive/50 text-destructive hover:bg-destructive/10"
-                  >
-                    I did this
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onDeleteBadHabit(badHabit.id)}
-                    className="text-muted-foreground hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-1 bg-destructive/10 text-destructive text-xs font-medium rounded-full">
+                      -{badHabit.points} pts
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        onTriggerBadHabit(badHabit.id);
+                        toast.error(`Bad habit triggered: -${badHabit.points} points`);
+                      }}
+                      className="text-sm h-8 border-destructive/50 text-destructive hover:bg-destructive/10"
+                    >
+                      I did this
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onDeleteBadHabit(badHabit.id)}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
