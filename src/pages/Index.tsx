@@ -198,12 +198,12 @@ const Index = () => {
     setStartOfDayLevel(currentLevel);
     setDailyXPEarned(0);
     
-    // Initialize today's streak data to 0
-    const today = startOfDay(new Date());
+    // Initialize only today's counters to 0 (don't modify streak calendar here)
     setTodayPoints(0);
     setTodayTasksCompleted(0);
     
-    // Add today's entry to streak calendar with 0 values
+    // Only add today's entry to streak calendar if it doesn't exist
+    const today = startOfDay(new Date());
     setDailyStreaks(prevStreaks => {
       const existingTodayIndex = prevStreaks.findIndex(s => {
         const streakDate = s.date instanceof Date ? s.date : parseISO(s.date as string);
@@ -211,7 +211,7 @@ const Index = () => {
       });
       
       if (existingTodayIndex >= 0) {
-        // Update existing today entry
+        // Today already exists - only reset if it has non-zero values from previous session
         const updated = [...prevStreaks];
         updated[existingTodayIndex] = {
           ...updated[existingTodayIndex],
@@ -220,7 +220,7 @@ const Index = () => {
         };
         return updated;
       } else {
-        // Add new today entry
+        // Add new today entry with 0 values
         return [
           ...prevStreaks,
           {
