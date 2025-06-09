@@ -261,6 +261,7 @@ const Index = () => {
           const lastResetDate = localStorage.getItem('lastLoginDate');
           
           if (lastResetDate !== today) {
+            console.log('New day detected for authenticated user, performing reset...');
             // Perform daily reset for authenticated users
             performDailyReset({
               badHabits: cloudProgress.bad_habits,
@@ -285,6 +286,9 @@ const Index = () => {
             setPoints(cloudProgress.points || 50);
             setSpendablePoints(cloudProgress.points || 50);
             setDailyXPEarned(cloudProgress.daily_xp_earned || 0);
+            
+            // Set bad habits avoided count
+            setBadHabitsAvoided((cloudProgress.bad_habits || INITIAL_BAD_HABITS).length);
           }
           
           toast.success("Progress loaded from your account!", { duration: 3000 });
@@ -369,7 +373,11 @@ const Index = () => {
         }
         
         const today = startOfDay(new Date()).toISOString();
-        if (lastLoginDate !== today) {
+        const todayDateOnly = today.split('T')[0];
+        const lastLoginDateOnly = lastLoginDate?.split('T')[0];
+        
+        if (lastLoginDateOnly !== todayDateOnly) {
+          console.log('New day detected for local user, performing reset...');
           // New day - perform daily reset
           performDailyReset({
             badHabits: savedBadHabits,
