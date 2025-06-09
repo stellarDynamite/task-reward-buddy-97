@@ -198,15 +198,49 @@ const Index = () => {
     setStartOfDayLevel(currentLevel);
     setDailyXPEarned(0);
     
+    // Initialize today's streak data to 0
+    const today = startOfDay(new Date());
+    setTodayPoints(0);
+    setTodayTasksCompleted(0);
+    
+    // Add today's entry to streak calendar with 0 values
+    setDailyStreaks(prevStreaks => {
+      const existingTodayIndex = prevStreaks.findIndex(s => {
+        const streakDate = s.date instanceof Date ? s.date : parseISO(s.date as string);
+        return streakDate && isSameDay(streakDate, today);
+      });
+      
+      if (existingTodayIndex >= 0) {
+        // Update existing today entry
+        const updated = [...prevStreaks];
+        updated[existingTodayIndex] = {
+          ...updated[existingTodayIndex],
+          points: 0,
+          tasksCompleted: 0
+        };
+        return updated;
+      } else {
+        // Add new today entry
+        return [
+          ...prevStreaks,
+          {
+            date: today,
+            points: 0,
+            tasksCompleted: 0
+          }
+        ];
+      }
+    });
+    
     // Show notification
     toast.success("Your habits have been reset for a new day! 🌅", {
       duration: 4000,
     });
     
     // Update last login date
-    const today = startOfDay(new Date()).toISOString();
+    const todayString = startOfDay(new Date()).toISOString();
     if (!user) {
-      localStorage.setItem('lastLoginDate', today);
+      localStorage.setItem('lastLoginDate', todayString);
     }
   };
   
@@ -450,6 +484,15 @@ const Index = () => {
         ];
       }
     });
+    
+    // Update today's counters if this is for today
+    const isToday = isSameDay(targetDate, startOfDay(new Date()));
+    if (isToday) {
+      setTodayPoints(prev => Math.max(0, prev + addPoints));
+      if (addTasksCompleted !== 0) {
+        setTodayTasksCompleted(prev => Math.max(0, prev + addTasksCompleted));
+      }
+    }
   };
 
   // Add points for a given date
