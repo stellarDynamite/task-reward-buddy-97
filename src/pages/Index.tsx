@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Task } from '@/components/TaskList';
@@ -134,7 +135,7 @@ const Index = () => {
     if (!lastLoginDate) return true; // First time user
     
     const today = startOfDay(new Date());
-    const lastLogin = startOfDay(new Date(lastLoginDate));
+    const lastLogin = startOfDay(parseISO(lastLoginDate));
     
     return !isSameDay(today, lastLogin);
   };
@@ -339,6 +340,7 @@ const Index = () => {
         const savedDailyXPEarned = localStorage.getItem('dailyXPEarned');
         const lastLoginDate = localStorage.getItem('lastLoginDate');
         
+        // Load basic data first
         if (savedTasks) {
           try {
             const parsedTasks = JSON.parse(savedTasks);
@@ -354,16 +356,6 @@ const Index = () => {
           setSpendablePoints(JSON.parse(savedSpendablePoints));
         } else if (savedPoints) {
           setSpendablePoints(JSON.parse(savedPoints));
-        }
-        
-        if (savedStats) {
-          try {
-            const stats = JSON.parse(savedStats);
-            setRewardsClaimed(stats.rewardsClaimed || 0);
-            setBadHabitsAvoided(stats.badHabitsAvoided || badHabits.length);
-          } catch (e) {
-            console.error("Error parsing stats:", e);
-          }
         }
         
         if (savedStreaks) {
@@ -417,6 +409,17 @@ const Index = () => {
           
           if (savedStartOfDayLevel) setStartOfDayLevel(JSON.parse(savedStartOfDayLevel));
           if (savedDailyXPEarned) setDailyXPEarned(JSON.parse(savedDailyXPEarned));
+          
+          // Load stats including bad habits avoided count
+          if (savedStats) {
+            try {
+              const stats = JSON.parse(savedStats);
+              setRewardsClaimed(stats.rewardsClaimed || 0);
+              setBadHabitsAvoided(stats.badHabitsAvoided || badHabits.length);
+            } catch (e) {
+              console.error("Error parsing stats:", e);
+            }
+          }
         }
         
         setProgressLoaded(true);
@@ -426,13 +429,14 @@ const Index = () => {
     initializeProgress();
   }, [user, authLoading, progressLoaded]);
   
-  // Load triggered bad habits from localStorage
+  // Load triggered bad habits from localStorage only once when progress is loaded
   useEffect(() => {
     if (!user && progressLoaded) {
       const savedTriggeredBadHabits = localStorage.getItem('triggeredBadHabitsToday');
       if (savedTriggeredBadHabits) {
         try {
           const parsed = JSON.parse(savedTriggeredBadHabits);
+          console.log('Loading triggered bad habits from localStorage:', parsed);
           setTriggeredBadHabitsToday(new Set(parsed));
         } catch (e) {
           console.error("Error parsing triggered bad habits:", e);
@@ -444,7 +448,9 @@ const Index = () => {
   // Save triggered bad habits to localStorage
   useEffect(() => {
     if (!user && progressLoaded) {
-      localStorage.setItem('triggeredBadHabitsToday', JSON.stringify(Array.from(triggeredBadHabitsToday)));
+      const triggeredArray = Array.from(triggeredBadHabitsToday);
+      console.log('Saving triggered bad habits to localStorage:', triggeredArray);
+      localStorage.setItem('triggeredBadHabitsToday', JSON.stringify(triggeredArray));
     }
   }, [user, progressLoaded, triggeredBadHabitsToday]);
   
@@ -618,6 +624,9 @@ const Index = () => {
     } else {
       console.log(`Bad habit triggered again: ${badHabit.title} - Lost ${Math.abs(lostPoints)} points but avoided count unchanged`);
     }
+    
+    // Add to triggered habits set
+    setTriggeredBadHabitsToday(prev => new Set([...prev, id]));
   };
 
   // --- Reward Claiming ---
