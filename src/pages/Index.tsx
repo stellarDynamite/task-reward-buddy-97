@@ -129,6 +129,16 @@ const Index = () => {
   // Calculate level information with floor at startOfDayLevel
   const [level, pointsToNextLevel, pointsNeededForNextLevel] = calculateLevel(points, startOfDayLevel);
 
+  // Helper function to check if it's actually a new day
+  const isNewDay = (lastLoginDate: string | null): boolean => {
+    if (!lastLoginDate) return true; // First time user
+    
+    const today = startOfDay(new Date());
+    const lastLogin = startOfDay(new Date(lastLoginDate));
+    
+    return !isSameDay(today, lastLogin);
+  };
+
   // Helper function to perform daily reset
   const performDailyReset = (savedData: any) => {
     console.log('Performing daily reset...');
@@ -204,7 +214,7 @@ const Index = () => {
     setStartOfDayLevel(currentLevel);
     setDailyXPEarned(0);
     
-    // Initialize only today's counters to 0 (don't modify streak calendar here)
+    // Initialize only today's counters to 0 (don't modify existing streak calendar here)
     setTodayPoints(0);
     setTodayTasksCompleted(0);
     
@@ -243,7 +253,7 @@ const Index = () => {
       duration: 4000,
     });
     
-    // Update last login date
+    // Update last login date to today
     const todayString = startOfDay(new Date()).toISOString();
     if (!user) {
       localStorage.setItem('lastLoginDate', todayString);
@@ -264,10 +274,9 @@ const Index = () => {
           console.log('Loaded cloud progress:', cloudProgress);
           
           // Check if it's a new day for authenticated users
-          const today = startOfDay(new Date()).toISOString().split('T')[0];
           const lastResetDate = localStorage.getItem('lastLoginDate');
           
-          if (lastResetDate !== today) {
+          if (isNewDay(lastResetDate)) {
             console.log('New day detected for authenticated user, performing reset...');
             // Perform daily reset for authenticated users
             performDailyReset({
@@ -283,8 +292,10 @@ const Index = () => {
             setSpendablePoints(cloudProgress.points || 50);
             setDailyXPEarned(0); // Reset daily XP
             
-            localStorage.setItem('lastLoginDate', today);
+            const todayString = startOfDay(new Date()).toISOString();
+            localStorage.setItem('lastLoginDate', todayString);
           } else {
+            console.log('Same day for authenticated user, loading normally...');
             // Not a new day, load normally
             setTasks(cloudProgress.tasks || INITIAL_TASKS);
             setBadHabits(cloudProgress.bad_habits || INITIAL_BAD_HABITS);
@@ -379,11 +390,8 @@ const Index = () => {
           }
         }
         
-        const today = startOfDay(new Date()).toISOString();
-        const todayDateOnly = today.split('T')[0];
-        const lastLoginDateOnly = lastLoginDate?.split('T')[0];
-        
-        if (lastLoginDateOnly !== todayDateOnly) {
+        // Check if it's a new day for local users
+        if (isNewDay(lastLoginDate)) {
           console.log('New day detected for local user, performing reset...');
           // New day - perform daily reset
           performDailyReset({
@@ -393,7 +401,8 @@ const Index = () => {
             points: savedPoints ? JSON.parse(savedPoints) : 50
           });
         } else {
-          // Same day - load normally
+          console.log('Same day for local user, loading normally...');
+          // Same day - load normally without resetting
           if (savedBadHabits) {
             const parsedBadHabits = JSON.parse(savedBadHabits);
             setBadHabits(parsedBadHabits);
@@ -767,3 +776,5 @@ const Index = () => {
 };
 
 export default Index;
+
+}
