@@ -129,14 +129,14 @@ const Index = () => {
   // Calculate level information with floor at startOfDayLevel
   const [level, pointsToNextLevel, pointsNeededForNextLevel] = calculateLevel(points, startOfDayLevel);
 
-  // Helper function to check if it's actually a new day
-  const isNewDay = (lastLoginDate: string | null): boolean => {
-    if (!lastLoginDate) return true; // First time user
+  // Helper function to check if it's actually a new day since last reset
+  const isNewDay = (lastResetDate: string | null): boolean => {
+    if (!lastResetDate) return true; // First time user or no reset date
     
     const today = startOfDay(new Date());
-    const lastLogin = startOfDay(parseISO(lastLoginDate));
+    const lastReset = startOfDay(parseISO(lastResetDate));
     
-    return !isSameDay(today, lastLogin);
+    return !isSameDay(today, lastReset);
   };
 
   // Helper function to perform daily reset
@@ -253,10 +253,10 @@ const Index = () => {
       duration: 4000,
     });
     
-    // Update last login date to today and clear triggered habits for localStorage users
+    // Update last reset date to today and clear triggered habits for localStorage users
     const todayString = startOfDay(new Date()).toISOString();
     if (!user) {
-      localStorage.setItem('lastLoginDate', todayString);
+      localStorage.setItem('lastDailyReset', todayString);
       localStorage.setItem('triggeredBadHabitsToday', JSON.stringify([]));
     }
   };
@@ -274,7 +274,7 @@ const Index = () => {
           console.log('Loaded cloud progress:', cloudProgress);
           
           // Check if it's a new day for authenticated users
-          const lastResetDate = localStorage.getItem('lastLoginDate');
+          const lastResetDate = localStorage.getItem('lastDailyReset');
           
           if (isNewDay(lastResetDate)) {
             console.log('New day detected for authenticated user, performing reset...');
@@ -293,7 +293,7 @@ const Index = () => {
             setDailyXPEarned(0); // Reset daily XP
             
             const todayString = startOfDay(new Date()).toISOString();
-            localStorage.setItem('lastLoginDate', todayString);
+            localStorage.setItem('lastDailyReset', todayString);
           } else {
             console.log('Same day for authenticated user, loading normally...');
             // Not a new day, load normally
@@ -337,10 +337,22 @@ const Index = () => {
         const savedStreaks = localStorage.getItem('dailyStreaks');
         const savedStartOfDayLevel = localStorage.getItem('startOfDayLevel');
         const savedDailyXPEarned = localStorage.getItem('dailyXPEarned');
-        const lastLoginDate = localStorage.getItem('lastLoginDate');
+        const savedTriggeredBadHabits = localStorage.getItem('triggeredBadHabitsToday');
+        const lastResetDate = localStorage.getItem('lastDailyReset');
         
-        // Check if it's a new day for local users first
-        if (isNewDay(lastLoginDate)) {
+        // Load triggered bad habits FIRST before checking for new day
+        if (savedTriggeredBadHabits) {
+          try {
+            const parsed = JSON.parse(savedTriggeredBadHabits);
+            console.log('Loading triggered bad habits from localStorage:', parsed);
+            setTriggeredBadHabitsToday(new Set(parsed));
+          } catch (e) {
+            console.error("Error parsing triggered bad habits:", e);
+          }
+        }
+        
+        // Check if it's a new day for local users
+        if (isNewDay(lastResetDate)) {
           console.log('New day detected for local user, performing reset...');
           // New day - perform daily reset
           performDailyReset({
@@ -406,13 +418,14 @@ const Index = () => {
             const parsedBadHabits = JSON.parse(savedBadHabits);
             setBadHabits(parsedBadHabits);
             
-            // Load stats after bad habits are loaded
+            // Load stats after bad habits are loaded - this is critical for avoiding reset
             if (savedStats) {
               try {
                 const stats = JSON.parse(savedStats);
                 setRewardsClaimed(stats.rewardsClaimed || 0);
                 // Use the saved avoided count, fallback to current bad habits length
                 setBadHabitsAvoided(stats.badHabitsAvoided !== undefined ? stats.badHabitsAvoided : parsedBadHabits.length);
+                console.log('Loaded badHabitsAvoided from stats:', stats.badHabitsAvoided);
               } catch (e) {
                 console.error("Error parsing stats:", e);
                 setBadHabitsAvoided(parsedBadHabits.length);
@@ -475,22 +488,6 @@ const Index = () => {
 
     initializeProgress();
   }, [user, authLoading, progressLoaded]);
-  
-  // Load triggered bad habits from localStorage only once when progress is loaded
-  useEffect(() => {
-    if (!user && progressLoaded) {
-      const savedTriggeredBadHabits = localStorage.getItem('triggeredBadHabitsToday');
-      if (savedTriggeredBadHabits) {
-        try {
-          const parsed = JSON.parse(savedTriggeredBadHabits);
-          console.log('Loading triggered bad habits from localStorage:', parsed);
-          setTriggeredBadHabitsToday(new Set(parsed));
-        } catch (e) {
-          console.error("Error parsing triggered bad habits:", e);
-        }
-      }
-    }
-  }, [user, progressLoaded]);
   
   // Save triggered bad habits to localStorage
   useEffect(() => {
