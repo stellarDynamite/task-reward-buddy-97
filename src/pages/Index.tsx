@@ -273,8 +273,9 @@ const Index = () => {
         if (cloudProgress) {
           console.log('Loaded cloud progress:', cloudProgress);
           
-          // Check if it's a new day for authenticated users
-          const lastResetDate = localStorage.getItem('lastDailyReset');
+          // Check if it's a new day for authenticated users using cloud data
+          const lastResetFromStorage = localStorage.getItem('lastDailyReset');
+          const lastResetDate = lastResetFromStorage || new Date().toISOString();
           
           if (isNewDay(lastResetDate)) {
             console.log('New day detected for authenticated user, performing reset...');
@@ -340,6 +341,9 @@ const Index = () => {
         const savedTriggeredBadHabits = localStorage.getItem('triggeredBadHabitsToday');
         const lastResetDate = localStorage.getItem('lastDailyReset');
         
+        console.log('Last reset date from localStorage:', lastResetDate);
+        console.log('Is new day?', isNewDay(lastResetDate));
+        
         // Load triggered bad habits FIRST before checking for new day
         if (savedTriggeredBadHabits) {
           try {
@@ -351,8 +355,11 @@ const Index = () => {
           }
         }
         
-        // Check if it's a new day for local users
-        if (isNewDay(lastResetDate)) {
+        // Check if it's a new day for local users - be more specific about this check
+        const actuallyNewDay = isNewDay(lastResetDate);
+        console.log('Actually new day check result:', actuallyNewDay);
+        
+        if (actuallyNewDay) {
           console.log('New day detected for local user, performing reset...');
           // New day - perform daily reset
           performDailyReset({
@@ -415,26 +422,34 @@ const Index = () => {
           
           // Load bad habits first so we have the right count for badHabitsAvoided
           if (savedBadHabits) {
-            const parsedBadHabits = JSON.parse(savedBadHabits);
-            setBadHabits(parsedBadHabits);
-            
-            // Load stats after bad habits are loaded - this is critical for avoiding reset
-            if (savedStats) {
-              try {
-                const stats = JSON.parse(savedStats);
-                setRewardsClaimed(stats.rewardsClaimed || 0);
-                // Use the saved avoided count, fallback to current bad habits length
-                setBadHabitsAvoided(stats.badHabitsAvoided !== undefined ? stats.badHabitsAvoided : parsedBadHabits.length);
-                console.log('Loaded badHabitsAvoided from stats:', stats.badHabitsAvoided);
-              } catch (e) {
-                console.error("Error parsing stats:", e);
+            try {
+              const parsedBadHabits = JSON.parse(savedBadHabits);
+              setBadHabits(parsedBadHabits);
+              console.log('Loaded bad habits from localStorage:', parsedBadHabits);
+              
+              // Load stats after bad habits are loaded - this is critical for avoiding reset
+              if (savedStats) {
+                try {
+                  const stats = JSON.parse(savedStats);
+                  setRewardsClaimed(stats.rewardsClaimed || 0);
+                  // Use the saved avoided count, fallback to current bad habits length
+                  setBadHabitsAvoided(stats.badHabitsAvoided !== undefined ? stats.badHabitsAvoided : parsedBadHabits.length);
+                  console.log('Loaded badHabitsAvoided from stats:', stats.badHabitsAvoided);
+                } catch (e) {
+                  console.error("Error parsing stats:", e);
+                  setBadHabitsAvoided(parsedBadHabits.length);
+                }
+              } else {
                 setBadHabitsAvoided(parsedBadHabits.length);
               }
-            } else {
-              setBadHabitsAvoided(parsedBadHabits.length);
+            } catch (e) {
+              console.error("Error parsing bad habits:", e);
+              setBadHabits(INITIAL_BAD_HABITS);
+              setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
             }
           } else {
             // No saved bad habits, use defaults
+            setBadHabits(INITIAL_BAD_HABITS);
             if (savedStats) {
               try {
                 const stats = JSON.parse(savedStats);
@@ -444,24 +459,41 @@ const Index = () => {
                 console.error("Error parsing stats:", e);
                 setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
               }
+            } else {
+              setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
             }
           }
           
           if (savedGoodHabits) {
-            const parsedGoodHabits = JSON.parse(savedGoodHabits);
-            setGoodHabits(parsedGoodHabits);
+            try {
+              const parsedGoodHabits = JSON.parse(savedGoodHabits);
+              setGoodHabits(parsedGoodHabits);
+            } catch (e) {
+              console.error("Error parsing good habits:", e);
+              setGoodHabits(INITIAL_GOOD_HABITS);
+            }
           }
           
-          if (savedRewards) setRewards(JSON.parse(savedRewards));
+          if (savedRewards) {
+            try {
+              const parsedRewards = JSON.parse(savedRewards);
+              setRewards(parsedRewards);
+            } catch (e) {
+              console.error("Error parsing rewards:", e);
+              setRewards(INITIAL_REWARDS);
+            }
+          }
           
           if (savedStartOfDayLevel) setStartOfDayLevel(JSON.parse(savedStartOfDayLevel));
           if (savedDailyXPEarned) setDailyXPEarned(JSON.parse(savedDailyXPEarned));
           
+          // Load streaks - this is crucial for showing past days' XP
           if (savedStreaks) {
             try {
               const parsedStreaks = JSON.parse(savedStreaks);
               const streaks = parsedStreaks.map((streak: any) => parseDates(streak));
               setDailyStreaks(streaks);
+              console.log('Loaded daily streaks:', streaks);
               
               const today = startOfDay(new Date());
               const todayStreak = streaks.find((s: DailyStreak) => {
@@ -474,6 +506,7 @@ const Index = () => {
               if (todayStreak) {
                 setTodayPoints(todayStreak.points);
                 setTodayTasksCompleted(todayStreak.tasksCompleted);
+                console.log('Set today points and tasks from streak:', todayStreak);
               }
             } catch (e) {
               console.error("Error parsing streaks:", e);
@@ -567,16 +600,19 @@ const Index = () => {
           points: Math.max(0, updated[idx].points + addPoints),
           tasksCompleted: Math.max(0, updated[idx].tasksCompleted + addTasksCompleted)
         };
+        console.log('Updated existing streak for date:', targetDate, 'new values:', updated[idx]);
         return updated;
       } else {
         // Add new streak
+        const newStreak = {
+          date: targetDate,
+          points: Math.max(0, addPoints),
+          tasksCompleted: Math.max(0, addTasksCompleted)
+        };
+        console.log('Added new streak for date:', targetDate, 'values:', newStreak);
         return [
           ...prevStreaks,
-          {
-            date: targetDate,
-            points: Math.max(0, addPoints),
-            tasksCompleted: Math.max(0, addTasksCompleted)
-          }
+          newStreak
         ];
       }
     });
