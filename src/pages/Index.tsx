@@ -214,11 +214,11 @@ const Index = () => {
     setStartOfDayLevel(currentLevel);
     setDailyXPEarned(0);
     
-    // Initialize only today's counters to 0 (don't modify existing streak calendar here)
+    // Initialize today's counters to 0
     setTodayPoints(0);
     setTodayTasksCompleted(0);
     
-    // Only add today's entry to streak calendar if it doesn't exist
+    // Ensure today has an entry in the streak calendar with 0 values
     const today = startOfDay(new Date());
     setDailyStreaks(prevStreaks => {
       const existingTodayIndex = prevStreaks.findIndex(s => {
@@ -227,24 +227,24 @@ const Index = () => {
       });
       
       if (existingTodayIndex >= 0) {
-        // Today already exists - only reset if it has non-zero values from previous session
+        // Today already exists - reset to 0 values for new day
         const updated = [...prevStreaks];
         updated[existingTodayIndex] = {
           ...updated[existingTodayIndex],
           points: 0,
           tasksCompleted: 0
         };
+        console.log('Reset today streak entry for new day:', updated[existingTodayIndex]);
         return updated;
       } else {
         // Add new today entry with 0 values
-        return [
-          ...prevStreaks,
-          {
-            date: today,
-            points: 0,
-            tasksCompleted: 0
-          }
-        ];
+        const newTodayEntry = {
+          date: today,
+          points: 0,
+          tasksCompleted: 0
+        };
+        console.log('Added new today streak entry:', newTodayEntry);
+        return [...prevStreaks, newTodayEntry];
       }
     });
     
@@ -355,11 +355,8 @@ const Index = () => {
           }
         }
         
-        // Check if it's a new day for local users - be more specific about this check
-        const actuallyNewDay = isNewDay(lastResetDate);
-        console.log('Actually new day check result:', actuallyNewDay);
-        
-        if (actuallyNewDay) {
+        // Check if it's a new day for local users
+        if (isNewDay(lastResetDate)) {
           console.log('New day detected for local user, performing reset...');
           // New day - perform daily reset
           performDailyReset({
@@ -387,12 +384,13 @@ const Index = () => {
             setSpendablePoints(JSON.parse(savedPoints));
           }
           
-          // Load streaks but don't modify today's entry since reset already handled it
+          // Load streaks but preserve all historical data
           if (savedStreaks) {
             try {
               const parsedStreaks = JSON.parse(savedStreaks);
               const streaks = parsedStreaks.map((streak: any) => parseDates(streak));
               setDailyStreaks(streaks);
+              console.log('Loaded streaks after reset:', streaks);
             } catch (e) {
               console.error("Error parsing streaks:", e);
               setDailyStreaks([]);
@@ -580,16 +578,20 @@ const Index = () => {
   
   // Utility function: Update or add points/tasks for a specific date in streaks
   const updateDailyStreakForDate = (targetDate: Date, addPoints: number, addTasksCompleted: number = 0) => {
+    console.log(`Updating streak for date: ${targetDate}, points: ${addPoints}, tasks: ${addTasksCompleted}`);
+    
     setDailyStreaks(prevStreaks => {
-      // Improved date comparison that works with both Date objects and strings
+      const targetDateString = startOfDay(targetDate);
+      
+      // Find existing streak for this date
       const idx = prevStreaks.findIndex(s => {
         if (!s.date) return false;
         
         const streakDate = s.date instanceof Date 
-          ? s.date 
-          : (typeof s.date === 'string' ? parseISO(s.date) : null);
+          ? startOfDay(s.date)
+          : startOfDay(parseISO(s.date));
         
-        return streakDate && isSameDay(streakDate, targetDate);
+        return isSameDay(streakDate, targetDateString);
       });
       
       if (idx >= 0) {
@@ -600,20 +602,17 @@ const Index = () => {
           points: Math.max(0, updated[idx].points + addPoints),
           tasksCompleted: Math.max(0, updated[idx].tasksCompleted + addTasksCompleted)
         };
-        console.log('Updated existing streak for date:', targetDate, 'new values:', updated[idx]);
+        console.log('Updated existing streak:', updated[idx]);
         return updated;
       } else {
         // Add new streak
         const newStreak = {
-          date: targetDate,
+          date: targetDateString,
           points: Math.max(0, addPoints),
           tasksCompleted: Math.max(0, addTasksCompleted)
         };
-        console.log('Added new streak for date:', targetDate, 'values:', newStreak);
-        return [
-          ...prevStreaks,
-          newStreak
-        ];
+        console.log('Added new streak:', newStreak);
+        return [...prevStreaks, newStreak];
       }
     });
     
@@ -627,33 +626,37 @@ const Index = () => {
     }
   };
 
-  // Add points for a given date
-  // - "forDate" should be the date points were earned; defaults to today.
+  // Add points for a given date - ALWAYS record in streak calendar
   const addPoints = (pointsToAdd: number, forDate: Date = startOfDay(new Date())) => {
-    // Only apply daily XP and level restrictions if affecting today!
     const isToday = isSameDay(forDate, startOfDay(new Date()));
-    let remainingDailyXP = MAX_DAILY_XP - dailyXPEarned;
     let actualPointsToAdd = pointsToAdd;
 
+    // Only apply daily limits for today
     if (isToday) {
-      if (remainingDailyXP <= 0) {
+      let remainingDailyXP = MAX_DAILY_XP - dailyXPEarned;
+      
+      if (remainingDailyXP <= 0 && pointsToAdd > 0) {
         toast.warning(`You've reached the daily XP limit (${MAX_DAILY_XP} XP)`, { duration: 5000 });
         return 0;
       }
-      actualPointsToAdd = Math.min(pointsToAdd, remainingDailyXP);
-      if (actualPointsToAdd < pointsToAdd) {
-        toast.warning(`Only added ${actualPointsToAdd} XP (daily limit: ${MAX_DAILY_XP} XP)`, { duration: 5000 });
+      
+      if (pointsToAdd > 0) {
+        actualPointsToAdd = Math.min(pointsToAdd, remainingDailyXP);
+        if (actualPointsToAdd < pointsToAdd) {
+          toast.warning(`Only added ${actualPointsToAdd} XP (daily limit: ${MAX_DAILY_XP} XP)`, { duration: 5000 });
+        }
       }
+      
+      // Update total points and daily XP only for today
       setPoints(prev => prev + actualPointsToAdd);
-      setSpendablePoints(prev => prev + actualPointsToAdd); // Add to spendable points as well
+      setSpendablePoints(prev => prev + actualPointsToAdd);
       setDailyXPEarned(prev => prev + actualPointsToAdd);
-    } else {
-      // For non-today, just add the points to streak—don't update main XP/levels
-      // Optionally, comment out below if you want points to retroactively update total XP as well
-      // setPoints(prev => prev + actualPointsToAdd);
-      // Do not update dailyXPEarned for past dates
     }
+    
+    // ALWAYS update the streak calendar regardless of date
     updateDailyStreakForDate(forDate, actualPointsToAdd, 0);
+    
+    console.log(`Added ${actualPointsToAdd} points for date: ${forDate}`);
     return actualPointsToAdd;
   };
 
@@ -662,18 +665,17 @@ const Index = () => {
     const task = tasks.find(t => t.id === id);
     if (!task || task.completed) return;
     
-    // Add points for completing the task
-    const earnedPoints = addPoints(task.points);
-    
-    // Mark the task as completed
+    // Mark the task as completed first
     setTasks(tasks.map(t => (t.id === id ? { ...t, completed: true } : t)));
     
-    // Update today's tasks completed count
-    const today = startOfDay(new Date());
-    updateDailyStreakForDate(today, 0, 1); // Add 1 to the task count, 0 additional points
-    setTodayTasksCompleted(prev => prev + 1);
+    // Add points for completing the task (for today)
+    const earnedPoints = addPoints(task.points);
     
-    console.log(`Task completed: ${task.title} - Added ${earnedPoints} points and updated streak`);
+    // Update task count in streak calendar for today
+    const today = startOfDay(new Date());
+    updateDailyStreakForDate(today, 0, 1); // Add 1 to the task count
+    
+    console.log(`Task completed: ${task.title} - Added ${earnedPoints} points and updated task count`);
   };
   
   // --- Good Habit Completion ---
