@@ -40,6 +40,7 @@ export type Database = {
         Row: {
           bad_habits: Json | null
           created_at: string | null
+          daily_streaks: Json | null
           daily_xp_earned: number | null
           good_habits: Json | null
           id: string
@@ -54,6 +55,7 @@ export type Database = {
         Insert: {
           bad_habits?: Json | null
           created_at?: string | null
+          daily_streaks?: Json | null
           daily_xp_earned?: number | null
           good_habits?: Json | null
           id?: string
@@ -68,6 +70,7 @@ export type Database = {
         Update: {
           bad_habits?: Json | null
           created_at?: string | null
+          daily_streaks?: Json | null
           daily_xp_earned?: number | null
           good_habits?: Json | null
           id?: string

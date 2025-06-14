@@ -225,13 +225,27 @@ export function useGameProgress({
       if (user && !progressLoaded) {
         console.log('Loading user progress from Supabase...');
         const cloudProgress = await loadProgress();
-        
+
+        // --- SUPABASE: Always prefer cloud streak data if present ---
         if (cloudProgress) {
           console.log('Loaded cloud progress:', cloudProgress);
-          
+
+          // Streak calendar - always prefer Supabase data for logged-in users!
+          if (Array.isArray(cloudProgress.daily_streaks)) {
+            setDailyStreaks(
+              cloudProgress.daily_streaks.map((streak: any) => ({
+                ...streak,
+                date: streak.date instanceof Date ? streak.date : new Date(streak.date)
+              }))
+            );
+            console.log('[StreakCal] Loaded streaks from Supabase:', cloudProgress.daily_streaks);
+          } else {
+            setDailyStreaks([]);
+          }
+
+          // Load streaks FIRST with proper date parsing
           const lastResetFromStorage = localStorage.getItem('lastDailyReset');
           const lastResetDate = lastResetFromStorage || new Date().toISOString();
-          
           if (isNewDay(lastResetDate)) {
             console.log('New day detected for authenticated user, performing reset...');
             performDailyReset({
@@ -240,16 +254,18 @@ export function useGameProgress({
               rewards: cloudProgress.rewards,
               points: cloudProgress.points
             });
-            
+
             setTasks(cloudProgress.tasks || INITIAL_TASKS);
             setPoints(cloudProgress.points || 50);
             setSpendablePoints(cloudProgress.points || 50);
             setDailyXPEarned(0);
-            
+
+            // DO NOT wipe dailyStreaks!
+            // Today's entry will be appended by updateDailyStreakForDate if user acts today
+
             const todayString = startOfDay(new Date()).toISOString();
             localStorage.setItem('lastDailyReset', todayString);
           } else {
-            console.log('Same day for authenticated user, loading normally...');
             setTasks(cloudProgress.tasks || INITIAL_TASKS);
             setBadHabits(cloudProgress.bad_habits || INITIAL_BAD_HABITS);
             setGoodHabits(cloudProgress.good_habits || INITIAL_GOOD_HABITS);
@@ -257,24 +273,24 @@ export function useGameProgress({
             setPoints(cloudProgress.points || 50);
             setSpendablePoints(cloudProgress.points || 50);
             setDailyXPEarned(cloudProgress.daily_xp_earned || 0);
-            
             setBadHabitsAvoided((cloudProgress.bad_habits || INITIAL_BAD_HABITS).length);
           }
-          
           toast.success("Progress loaded from your account!", { duration: 3000 });
         } else {
-          console.log('No cloud progress found, using local data');
+          // No cloud progress found, push current local state
           await saveProgress({
             tasks,
             bad_habits: badHabits,
             good_habits: goodHabits,
             rewards,
             points,
-            daily_xp_earned: dailyXPEarned
+            daily_xp_earned: dailyXPEarned,
+            daily_streaks: dailyStreaks.map(s => ({ ...s, date: s.date instanceof Date ? s.date.toISOString() : s.date }))
           });
         }
         setProgressLoaded(true);
       } else if (!user) {
+        // Load progress from localStorage...
         console.log('Loading progress from localStorage...');
         
         const savedTasks = localStorage.getItem('tasks');
@@ -297,16 +313,17 @@ export function useGameProgress({
         if (savedStreaks) {
           try {
             const parsedStreaks = JSON.parse(savedStreaks);
-            const streaksWithDates = parsedStreaks.map((streak: any) => ({
-              ...streak,
-              date: streak.date instanceof Date ? streak.date : new Date(streak.date)
-            }));
-            setDailyStreaks(streaksWithDates);
-            console.log('LOADED STREAK DATA WITH PROPER DATES:', streaksWithDates);
+            setDailyStreaks(
+              parsedStreaks.map((streak: any) => ({
+                ...streak,
+                date: streak.date instanceof Date ? streak.date : new Date(streak.date)
+              }))
+            );
+            console.log('[StreakCal][Local] Loaded streaks:', parsedStreaks);
             
             // Set today's counters from existing streak data
             const today = startOfDay(new Date());
-            const todayStreak = streaksWithDates.find((s: DailyStreak) => {
+            const todayStreak = parsedStreaks.find((s: DailyStreak) => {
               const streakDate = s.date instanceof Date ? s.date : new Date(s.date);
               return streakDate && isSameDay(streakDate, today);
             });
@@ -314,7 +331,7 @@ export function useGameProgress({
             if (todayStreak) {
               setTodayPoints(todayStreak.points);
               setTodayTasksCompleted(todayStreak.tasksCompleted);
-              console.log('Set today points and tasks from existing streak:', todayStreak);
+              console.log('[StreakCal][Local] Set today points/tasks from streak:', todayStreak);
             }
           } catch (e) {
             console.error("Error parsing streaks:", e);
@@ -467,18 +484,26 @@ export function useGameProgress({
           good_habits: goodHabits,
           rewards,
           points,
-          daily_xp_earned: dailyXPEarned
+          daily_xp_earned: dailyXPEarned,
+          daily_streaks: dailyStreaks.map(s => ({
+            ...s,
+            date: s.date instanceof Date ? s.date.toISOString() : s.date // Always store as ISO
+          })),
         });
       };
-      
       const timeoutId = setTimeout(saveToCloud, 1000);
       return () => clearTimeout(timeoutId);
     }
-  }, [user, progressLoaded, tasks, badHabits, goodHabits, rewards, points, dailyXPEarned]);
+  }, [user, progressLoaded, tasks, badHabits, goodHabits, rewards, points, dailyXPEarned, dailyStreaks]);
   
   // Save to localStorage if not authenticated
   useEffect(() => {
     if (!user && progressLoaded) {
+      const streaksToSave = dailyStreaks.map(streak => ({
+        ...streak,
+        date: streak.date instanceof Date ? streak.date.toISOString() : streak.date
+      }));
+      localStorage.setItem('dailyStreaks', JSON.stringify(streaksToSave));
       localStorage.setItem('tasks', JSON.stringify(tasks));
       localStorage.setItem('badHabits', JSON.stringify(badHabits));
       localStorage.setItem('goodHabits', JSON.stringify(goodHabits));
@@ -490,13 +515,6 @@ export function useGameProgress({
         rewardsClaimed,
         badHabitsAvoided
       }));
-      
-      const streaksToSave = dailyStreaks.map(streak => ({
-        ...streak,
-        date: streak.date instanceof Date ? streak.date.toISOString() : streak.date
-      }));
-      localStorage.setItem('dailyStreaks', JSON.stringify(streaksToSave));
-      console.log('SAVED STREAK DATA:', streaksToSave);
       
       localStorage.setItem('startOfDayLevel', JSON.stringify(startOfDayLevel));
       localStorage.setItem('dailyXPEarned', JSON.stringify(dailyXPEarned));

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -12,6 +11,7 @@ export interface UserProgressData {
   good_habits: any[];
   rewards: any[];
   daily_xp_earned: number;
+  daily_streaks: any[]; // Added for streak calendar sync
 }
 
 export function useUserProgress() {
@@ -46,7 +46,8 @@ export function useUserProgress() {
         bad_habits: Array.isArray(data.bad_habits) ? data.bad_habits : [],
         good_habits: Array.isArray(data.good_habits) ? data.good_habits : [],
         rewards: Array.isArray(data.rewards) ? data.rewards : [],
-        daily_xp_earned: data.daily_xp_earned || 0
+        daily_xp_earned: data.daily_xp_earned || 0,
+        daily_streaks: Array.isArray(data.daily_streaks) ? data.daily_streaks : []
       };
     } catch (error) {
       console.error('Error loading progress:', error);
@@ -62,7 +63,7 @@ export function useUserProgress() {
 
     try {
       setSyncing(true);
-      
+
       // First try to update existing record
       const { data: existingData, error: fetchError } = await supabase
         .from('user_progress')
