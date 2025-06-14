@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Task } from '@/components/TaskList';
@@ -47,20 +48,19 @@ export interface DailyStreak {
   tasksCompleted: number;
 }
 
-// Helper function to parse dates
+// FIXED: Simple date parsing that converts string dates to proper Date objects
 const parseDates = <T extends { [key: string]: any }>(obj: T): T => {
   const result = { ...obj } as T;
   Object.keys(obj).forEach(key => {
     const value = obj[key];
-    if (key === 'date' || key === 'deadline') {
-      if (typeof value === 'string') {
-        try {
-          result[key as keyof T] = parseISO(value) as unknown as T[keyof T];
-        } catch (e) {
-          console.error(`Error parsing date for key ${key}:`, e);
-        }
+    if ((key === 'date' || key === 'deadline') && typeof value === 'string') {
+      try {
+        result[key as keyof T] = new Date(value) as unknown as T[keyof T];
+      } catch (e) {
+        console.error(`Error parsing date for key ${key}:`, e);
+        result[key as keyof T] = value;
       }
-    } else if (typeof value === 'object' && value !== null) {
+    } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
       result[key as keyof T] = parseDates(value) as T[keyof T];
     }
   });
@@ -134,7 +134,7 @@ const Index = () => {
     if (!lastResetDate) return true; // First time user or no reset date
     
     const today = startOfDay(new Date());
-    const lastReset = startOfDay(parseISO(lastResetDate));
+    const lastReset = startOfDay(new Date(lastResetDate));
     
     return !isSameDay(today, lastReset);
   };
@@ -222,7 +222,7 @@ const Index = () => {
     const today = startOfDay(new Date());
     setDailyStreaks(prevStreaks => {
       const existingTodayIndex = prevStreaks.findIndex(s => {
-        const streakDate = s.date instanceof Date ? s.date : parseISO(s.date as string);
+        const streakDate = s.date instanceof Date ? s.date : new Date(s.date);
         return streakDate && isSameDay(streakDate, today);
       });
       
@@ -254,7 +254,7 @@ const Index = () => {
     });
     
     // Update last reset date to today and clear triggered habits for localStorage users
-    const todayString = startOfDay(new Date()).toISOString();
+    const todayString = today.toISOString();
     if (!user) {
       localStorage.setItem('lastDailyReset', todayString);
       localStorage.setItem('triggeredBadHabitsToday', JSON.stringify([]));
@@ -344,7 +344,24 @@ const Index = () => {
         console.log('Last reset date from localStorage:', lastResetDate);
         console.log('Is new day?', isNewDay(lastResetDate));
         
-        // Load triggered bad habits FIRST before checking for new day
+        // CRITICAL: Load streaks FIRST before any other operations
+        if (savedStreaks) {
+          try {
+            const parsedStreaks = JSON.parse(savedStreaks);
+            // FIXED: Properly parse dates in streak data
+            const streaksWithDates = parsedStreaks.map((streak: any) => ({
+              ...streak,
+              date: streak.date instanceof Date ? streak.date : new Date(streak.date)
+            }));
+            setDailyStreaks(streaksWithDates);
+            console.log('LOADED STREAK DATA WITH PROPER DATES:', streaksWithDates);
+          } catch (e) {
+            console.error("Error parsing streaks:", e);
+            setDailyStreaks([]);
+          }
+        }
+        
+        // Load triggered bad habits BEFORE checking for new day
         if (savedTriggeredBadHabits) {
           try {
             const parsed = JSON.parse(savedTriggeredBadHabits);
@@ -358,7 +375,7 @@ const Index = () => {
         // Check if it's a new day for local users
         if (isNewDay(lastResetDate)) {
           console.log('New day detected for local user, performing reset...');
-          // New day - perform daily reset
+          // New day - perform daily reset but PRESERVE existing streak data
           performDailyReset({
             badHabits: savedBadHabits,
             goodHabits: savedGoodHabits,
@@ -382,19 +399,6 @@ const Index = () => {
             setSpendablePoints(JSON.parse(savedSpendablePoints));
           } else if (savedPoints) {
             setSpendablePoints(JSON.parse(savedPoints));
-          }
-          
-          // Load streaks but preserve all historical data
-          if (savedStreaks) {
-            try {
-              const parsedStreaks = JSON.parse(savedStreaks);
-              const streaks = parsedStreaks.map((streak: any) => parseDates(streak));
-              setDailyStreaks(streaks);
-              console.log('Loaded streaks after reset:', streaks);
-            } catch (e) {
-              console.error("Error parsing streaks:", e);
-              setDailyStreaks([]);
-            }
           }
         } else {
           console.log('Same day for local user, loading normally...');
@@ -485,31 +489,17 @@ const Index = () => {
           if (savedStartOfDayLevel) setStartOfDayLevel(JSON.parse(savedStartOfDayLevel));
           if (savedDailyXPEarned) setDailyXPEarned(JSON.parse(savedDailyXPEarned));
           
-          // Load streaks - this is crucial for showing past days' XP
-          if (savedStreaks) {
-            try {
-              const parsedStreaks = JSON.parse(savedStreaks);
-              const streaks = parsedStreaks.map((streak: any) => parseDates(streak));
-              setDailyStreaks(streaks);
-              console.log('Loaded daily streaks:', streaks);
-              
-              const today = startOfDay(new Date());
-              const todayStreak = streaks.find((s: DailyStreak) => {
-                const streakDate = s.date instanceof Date 
-                  ? s.date 
-                  : (typeof s.date === 'string' ? parseISO(s.date) : null);
-                return streakDate && isSameDay(streakDate, today);
-              });
-              
-              if (todayStreak) {
-                setTodayPoints(todayStreak.points);
-                setTodayTasksCompleted(todayStreak.tasksCompleted);
-                console.log('Set today points and tasks from streak:', todayStreak);
-              }
-            } catch (e) {
-              console.error("Error parsing streaks:", e);
-              setDailyStreaks([]);
-            }
+          // CRITICAL: Load today's streak data to set today's counters
+          const today = startOfDay(new Date());
+          const todayStreak = dailyStreaks.find((s: DailyStreak) => {
+            const streakDate = s.date instanceof Date ? s.date : new Date(s.date);
+            return streakDate && isSameDay(streakDate, today);
+          });
+          
+          if (todayStreak) {
+            setTodayPoints(todayStreak.points);
+            setTodayTasksCompleted(todayStreak.tasksCompleted);
+            console.log('Set today points and tasks from streak:', todayStreak);
           }
         }
         
@@ -564,7 +554,14 @@ const Index = () => {
         badHabitsAvoided
       }));
       
-      localStorage.setItem('dailyStreaks', JSON.stringify(dailyStreaks));
+      // CRITICAL: Save streak data with proper date serialization
+      const streaksToSave = dailyStreaks.map(streak => ({
+        ...streak,
+        date: streak.date instanceof Date ? streak.date.toISOString() : streak.date
+      }));
+      localStorage.setItem('dailyStreaks', JSON.stringify(streaksToSave));
+      console.log('SAVED STREAK DATA:', streaksToSave);
+      
       localStorage.setItem('startOfDayLevel', JSON.stringify(startOfDayLevel));
       localStorage.setItem('dailyXPEarned', JSON.stringify(dailyXPEarned));
     }
@@ -589,7 +586,7 @@ const Index = () => {
         
         const streakDate = s.date instanceof Date 
           ? startOfDay(s.date)
-          : startOfDay(parseISO(s.date));
+          : startOfDay(new Date(s.date));
         
         return isSameDay(streakDate, targetDateString);
       });
