@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Task } from '@/components/TaskList';
@@ -15,6 +14,15 @@ import StreakCalendar from '@/components/StreakCalendar';
 import { toast } from 'sonner';
 import { format, startOfDay, isSameDay, parseISO } from 'date-fns';
 import { useUserProgress } from '@/hooks/useUserProgress';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 // Constants for game balance
 const MAX_DAILY_LEVELS = 3;
@@ -48,20 +56,52 @@ export interface DailyStreak {
   tasksCompleted: number;
 }
 
-// FIXED: Simple date parsing that converts string dates to proper Date objects
-const parseDates = <T extends { [key: string]: any }>(obj: T): T => {
-  const result = { ...obj } as T;
+// Character personas for notifications
+const CHARACTER_PERSONAS: { [key: string]: string[] } = {
+  bakugo: [
+    "DIE! I mean... good job, you damn nerd! Keep pushing yourself harder!",
+    "Tch! Not bad for a weakling. You're getting stronger, I'll give you that!",
+    "WHAT?! You actually did it! Don't think this makes you better than me!",
+    "Finally showing some backbone! Keep this up and maybe you won't be completely useless!",
+    "I HATE admitting this, but... you're not as pathetic as I thought. KEEP GOING!"
+  ],
+  naruto: [
+    "Dattebayo! That was amazing! You're getting closer to your dreams!",
+    "Believe it! You're working so hard, I'm really proud of you!",
+    "That's the spirit! Never give up, that's your ninja way!",
+    "Ramen celebration time! You earned it with all that hard work!",
+    "You're becoming stronger every day! I can see your determination burning bright!"
+  ],
+  goku: [
+    "Wow! That was incredible! You're getting so much stronger!",
+    "Amazing! I can feel your power level rising! Keep training!",
+    "That's the spirit! Hard work always pays off!",
+    "Fantastic! You remind me of myself when I was training!",
+    "Your dedication is inspiring! Let's celebrate with some food!"
+  ],
+  luffy: [
+    "Awesome! You're like a real nakama now! Let's have a feast!",
+    "That was so cool! You never gave up, just like a true pirate!",
+    "Incredible! You're getting closer to your treasure!",
+    "Amazing work! You're definitely crew material!",
+    "That spirit! That's what being free is all about!"
+  ]
+};
+
+// FIXED: Simple date parsing that handles both Date objects and strings properly
+const parseDates = <T extends Record<string, any>>(obj: T): T => {
+  const result = { ...obj };
   Object.keys(obj).forEach(key => {
     const value = obj[key];
     if ((key === 'date' || key === 'deadline') && typeof value === 'string') {
       try {
-        result[key as keyof T] = new Date(value) as unknown as T[keyof T];
+        (result as any)[key] = new Date(value);
       } catch (e) {
         console.error(`Error parsing date for key ${key}:`, e);
-        result[key as keyof T] = value;
+        (result as any)[key] = value;
       }
     } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      result[key as keyof T] = parseDates(value) as T[keyof T];
+      (result as any)[key] = parseDates(value);
     }
   });
   return result;
@@ -74,21 +114,18 @@ const getPointsNeededForLevel = (level: number): number => {
 
 // Calculate current level based on total points, but never decrease
 const calculateLevel = (points: number, startOfDayLevel: number): [number, number, number] => {
-  let level = 1; // Start at level 1
+  let level = 1;
   let totalPointsNeeded = getPointsNeededForLevel(level);
   let previousLevelPoints = 0;
   
-  // Increase level if points exceed the threshold
   while (points >= totalPointsNeeded) {
     level++;
     previousLevelPoints = totalPointsNeeded;
     totalPointsNeeded = getPointsNeededForLevel(level);
   }
   
-  // Ensure level never goes below startOfDayLevel or previously reached levels
   level = Math.max(level, startOfDayLevel);
   
-  // Points progress within current level
   const pointsInCurrentLevel = Math.max(0, points - previousLevelPoints);
   const pointsNeededForNextLevel = getPointsNeededForLevel(level + 1) - previousLevelPoints;
   
@@ -126,12 +163,69 @@ const Index = () => {
   const [dailyXPEarned, setDailyXPEarned] = useState(0);
   const [progressLoaded, setProgressLoaded] = useState(false);
   
+  // Character selection state
+  const [showCharacterDialog, setShowCharacterDialog] = useState(false);
+  const [favoriteCharacter, setFavoriteCharacter] = useState<string>('');
+  const [characterInput, setCharacterInput] = useState('');
+  const [hasReachedLevel3, setHasReachedLevel3] = useState(false);
+  
   // Calculate level information with floor at startOfDayLevel
   const [level, pointsToNextLevel, pointsNeededForNextLevel] = calculateLevel(points, startOfDayLevel);
 
+  // Check if user reached level 3 and show character dialog
+  useEffect(() => {
+    if (level >= 3 && !hasReachedLevel3 && !favoriteCharacter) {
+      setShowCharacterDialog(true);
+      setHasReachedLevel3(true);
+    }
+  }, [level, hasReachedLevel3, favoriteCharacter]);
+
+  // Load favorite character from storage
+  useEffect(() => {
+    const savedCharacter = localStorage.getItem('favoriteCharacter');
+    const savedHasReachedLevel3 = localStorage.getItem('hasReachedLevel3');
+    
+    if (savedCharacter) {
+      setFavoriteCharacter(savedCharacter);
+    }
+    if (savedHasReachedLevel3) {
+      setHasReachedLevel3(JSON.parse(savedHasReachedLevel3));
+    }
+  }, []);
+
+  // Save character selection
+  const handleCharacterSubmit = () => {
+    if (characterInput.trim()) {
+      const character = characterInput.toLowerCase().trim();
+      setFavoriteCharacter(character);
+      localStorage.setItem('favoriteCharacter', character);
+      localStorage.setItem('hasReachedLevel3', JSON.stringify(true));
+      setShowCharacterDialog(false);
+      
+      toast.success(`Great choice! ${characterInput} will be your motivation buddy!`);
+    }
+  };
+
+  // Show character notification when conditions are met
+  const showCharacterNotification = () => {
+    if (!favoriteCharacter || todayTasksCompleted < 3 || triggeredBadHabitsToday.size > 0) return;
+    
+    const personas = CHARACTER_PERSONAS[favoriteCharacter] || [
+      "Amazing work! You're absolutely crushing it today!",
+      "Incredible dedication! Keep up the fantastic work!",
+      "You're on fire! This is exactly the kind of effort that leads to success!"
+    ];
+    
+    const randomMessage = personas[Math.floor(Math.random() * personas.length)];
+    
+    toast.success(`${favoriteCharacter.charAt(0).toUpperCase() + favoriteCharacter.slice(1)}: ${randomMessage}`, {
+      duration: 8000,
+    });
+  };
+
   // Helper function to check if it's actually a new day since last reset
   const isNewDay = (lastResetDate: string | null): boolean => {
-    if (!lastResetDate) return true; // First time user or no reset date
+    if (!lastResetDate) return true;
     
     const today = startOfDay(new Date());
     const lastReset = startOfDay(new Date(lastResetDate));
@@ -143,21 +237,18 @@ const Index = () => {
   const performDailyReset = (savedData: any) => {
     console.log('Performing daily reset...');
     
-    // Reset triggered bad habits tracking
     setTriggeredBadHabitsToday(new Set());
     
-    // Reset bad habits - they get a fresh start each day
     if (savedData.badHabits) {
       const parsedBadHabits = Array.isArray(savedData.badHabits) ? savedData.badHabits : JSON.parse(savedData.badHabits);
       setBadHabits(parsedBadHabits);
-      setBadHabitsAvoided(parsedBadHabits.length); // Reset to full count each day
+      setBadHabitsAvoided(parsedBadHabits.length);
       console.log('Bad habits reset for new day:', parsedBadHabits);
     } else {
       setBadHabits(INITIAL_BAD_HABITS);
       setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
     }
     
-    // Reset good habits - ENSURE they are reset to completed: false
     if (savedData.goodHabits) {
       const parsedGoodHabits = Array.isArray(savedData.goodHabits) ? savedData.goodHabits : JSON.parse(savedData.goodHabits);
       const renewedGoodHabits = parsedGoodHabits.map((habit: GoodHabit) => ({
@@ -167,7 +258,6 @@ const Index = () => {
       setGoodHabits(renewedGoodHabits);
       console.log('Good habits reset for new day:', renewedGoodHabits);
       
-      // Save to localStorage for non-authenticated users
       if (!user) {
         localStorage.setItem('goodHabits', JSON.stringify(renewedGoodHabits));
       }
@@ -179,13 +269,11 @@ const Index = () => {
       setGoodHabits(resetInitialGoodHabits);
       console.log('Initial good habits set with completed: false');
       
-      // Save to localStorage for non-authenticated users
       if (!user) {
         localStorage.setItem('goodHabits', JSON.stringify(resetInitialGoodHabits));
       }
     }
     
-    // Reset rewards
     if (savedData.rewards) {
       try {
         const parsedRewards = Array.isArray(savedData.rewards) ? savedData.rewards : JSON.parse(savedData.rewards);
@@ -195,7 +283,6 @@ const Index = () => {
         setRewards(renewedRewards);
         setRewardsClaimed(0);
         
-        // Save to localStorage for non-authenticated users
         if (!user) {
           localStorage.setItem('rewards', JSON.stringify(renewedRewards));
           const updatedStats = { 
@@ -209,16 +296,13 @@ const Index = () => {
       }
     }
     
-    // Reset daily XP and level tracking
     const currentLevel = calculateLevel(savedData.points || 50, startOfDayLevel)[0];
     setStartOfDayLevel(currentLevel);
     setDailyXPEarned(0);
     
-    // Initialize today's counters to 0
     setTodayPoints(0);
     setTodayTasksCompleted(0);
     
-    // Ensure today has an entry in the streak calendar with 0 values
     const today = startOfDay(new Date());
     setDailyStreaks(prevStreaks => {
       const existingTodayIndex = prevStreaks.findIndex(s => {
@@ -227,7 +311,6 @@ const Index = () => {
       });
       
       if (existingTodayIndex >= 0) {
-        // Today already exists - reset to 0 values for new day
         const updated = [...prevStreaks];
         updated[existingTodayIndex] = {
           ...updated[existingTodayIndex],
@@ -237,7 +320,6 @@ const Index = () => {
         console.log('Reset today streak entry for new day:', updated[existingTodayIndex]);
         return updated;
       } else {
-        // Add new today entry with 0 values
         const newTodayEntry = {
           date: today,
           points: 0,
@@ -248,12 +330,10 @@ const Index = () => {
       }
     });
     
-    // Show notification
     toast.success("Your habits have been reset for a new day! 🌅", {
       duration: 4000,
     });
     
-    // Update last reset date to today and clear triggered habits for localStorage users
     const todayString = today.toISOString();
     if (!user) {
       localStorage.setItem('lastDailyReset', todayString);
@@ -273,13 +353,11 @@ const Index = () => {
         if (cloudProgress) {
           console.log('Loaded cloud progress:', cloudProgress);
           
-          // Check if it's a new day for authenticated users using cloud data
           const lastResetFromStorage = localStorage.getItem('lastDailyReset');
           const lastResetDate = lastResetFromStorage || new Date().toISOString();
           
           if (isNewDay(lastResetDate)) {
             console.log('New day detected for authenticated user, performing reset...');
-            // Perform daily reset for authenticated users
             performDailyReset({
               badHabits: cloudProgress.bad_habits,
               goodHabits: cloudProgress.good_habits,
@@ -287,17 +365,15 @@ const Index = () => {
               points: cloudProgress.points
             });
             
-            // Set other data normally
             setTasks(cloudProgress.tasks || INITIAL_TASKS);
             setPoints(cloudProgress.points || 50);
             setSpendablePoints(cloudProgress.points || 50);
-            setDailyXPEarned(0); // Reset daily XP
+            setDailyXPEarned(0);
             
             const todayString = startOfDay(new Date()).toISOString();
             localStorage.setItem('lastDailyReset', todayString);
           } else {
             console.log('Same day for authenticated user, loading normally...');
-            // Not a new day, load normally
             setTasks(cloudProgress.tasks || INITIAL_TASKS);
             setBadHabits(cloudProgress.bad_habits || INITIAL_BAD_HABITS);
             setGoodHabits(cloudProgress.good_habits || INITIAL_GOOD_HABITS);
@@ -306,14 +382,12 @@ const Index = () => {
             setSpendablePoints(cloudProgress.points || 50);
             setDailyXPEarned(cloudProgress.daily_xp_earned || 0);
             
-            // Set bad habits avoided count
             setBadHabitsAvoided((cloudProgress.bad_habits || INITIAL_BAD_HABITS).length);
           }
           
           toast.success("Progress loaded from your account!", { duration: 3000 });
         } else {
           console.log('No cloud progress found, using local data');
-          // Save current local progress to cloud
           await saveProgress({
             tasks,
             bad_habits: badHabits,
@@ -325,7 +399,6 @@ const Index = () => {
         }
         setProgressLoaded(true);
       } else if (!user) {
-        // Load from localStorage if not authenticated
         console.log('Loading progress from localStorage...');
         
         const savedTasks = localStorage.getItem('tasks');
@@ -344,24 +417,35 @@ const Index = () => {
         console.log('Last reset date from localStorage:', lastResetDate);
         console.log('Is new day?', isNewDay(lastResetDate));
         
-        // CRITICAL: Load streaks FIRST before any other operations
+        // Load streaks FIRST with proper date parsing
         if (savedStreaks) {
           try {
             const parsedStreaks = JSON.parse(savedStreaks);
-            // FIXED: Properly parse dates in streak data
             const streaksWithDates = parsedStreaks.map((streak: any) => ({
               ...streak,
               date: streak.date instanceof Date ? streak.date : new Date(streak.date)
             }));
             setDailyStreaks(streaksWithDates);
             console.log('LOADED STREAK DATA WITH PROPER DATES:', streaksWithDates);
+            
+            // Set today's counters from existing streak data
+            const today = startOfDay(new Date());
+            const todayStreak = streaksWithDates.find((s: DailyStreak) => {
+              const streakDate = s.date instanceof Date ? s.date : new Date(s.date);
+              return streakDate && isSameDay(streakDate, today);
+            });
+            
+            if (todayStreak) {
+              setTodayPoints(todayStreak.points);
+              setTodayTasksCompleted(todayStreak.tasksCompleted);
+              console.log('Set today points and tasks from existing streak:', todayStreak);
+            }
           } catch (e) {
             console.error("Error parsing streaks:", e);
             setDailyStreaks([]);
           }
         }
         
-        // Load triggered bad habits BEFORE checking for new day
         if (savedTriggeredBadHabits) {
           try {
             const parsed = JSON.parse(savedTriggeredBadHabits);
@@ -372,10 +456,8 @@ const Index = () => {
           }
         }
         
-        // Check if it's a new day for local users
         if (isNewDay(lastResetDate)) {
           console.log('New day detected for local user, performing reset...');
-          // New day - perform daily reset but PRESERVE existing streak data
           performDailyReset({
             badHabits: savedBadHabits,
             goodHabits: savedGoodHabits,
@@ -383,7 +465,6 @@ const Index = () => {
             points: savedPoints ? JSON.parse(savedPoints) : 50
           });
           
-          // Load basic data after reset
           if (savedTasks) {
             try {
               const parsedTasks = JSON.parse(savedTasks);
@@ -402,9 +483,7 @@ const Index = () => {
           }
         } else {
           console.log('Same day for local user, loading normally...');
-          // Same day - load normally without resetting
           
-          // Load basic data first
           if (savedTasks) {
             try {
               const parsedTasks = JSON.parse(savedTasks);
@@ -422,19 +501,16 @@ const Index = () => {
             setSpendablePoints(JSON.parse(savedPoints));
           }
           
-          // Load bad habits first so we have the right count for badHabitsAvoided
           if (savedBadHabits) {
             try {
               const parsedBadHabits = JSON.parse(savedBadHabits);
               setBadHabits(parsedBadHabits);
               console.log('Loaded bad habits from localStorage:', parsedBadHabits);
               
-              // Load stats after bad habits are loaded - this is critical for avoiding reset
               if (savedStats) {
                 try {
                   const stats = JSON.parse(savedStats);
                   setRewardsClaimed(stats.rewardsClaimed || 0);
-                  // Use the saved avoided count, fallback to current bad habits length
                   setBadHabitsAvoided(stats.badHabitsAvoided !== undefined ? stats.badHabitsAvoided : parsedBadHabits.length);
                   console.log('Loaded badHabitsAvoided from stats:', stats.badHabitsAvoided);
                 } catch (e) {
@@ -450,7 +526,6 @@ const Index = () => {
               setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
             }
           } else {
-            // No saved bad habits, use defaults
             setBadHabits(INITIAL_BAD_HABITS);
             if (savedStats) {
               try {
@@ -488,19 +563,6 @@ const Index = () => {
           
           if (savedStartOfDayLevel) setStartOfDayLevel(JSON.parse(savedStartOfDayLevel));
           if (savedDailyXPEarned) setDailyXPEarned(JSON.parse(savedDailyXPEarned));
-          
-          // CRITICAL: Load today's streak data to set today's counters
-          const today = startOfDay(new Date());
-          const todayStreak = dailyStreaks.find((s: DailyStreak) => {
-            const streakDate = s.date instanceof Date ? s.date : new Date(s.date);
-            return streakDate && isSameDay(streakDate, today);
-          });
-          
-          if (todayStreak) {
-            setTodayPoints(todayStreak.points);
-            setTodayTasksCompleted(todayStreak.tasksCompleted);
-            console.log('Set today points and tasks from streak:', todayStreak);
-          }
         }
         
         setProgressLoaded(true);
@@ -533,7 +595,6 @@ const Index = () => {
         });
       };
       
-      // Debounce saves to avoid too many requests
       const timeoutId = setTimeout(saveToCloud, 1000);
       return () => clearTimeout(timeoutId);
     }
@@ -554,7 +615,6 @@ const Index = () => {
         badHabitsAvoided
       }));
       
-      // CRITICAL: Save streak data with proper date serialization
       const streaksToSave = dailyStreaks.map(streak => ({
         ...streak,
         date: streak.date instanceof Date ? streak.date.toISOString() : streak.date
@@ -573,6 +633,16 @@ const Index = () => {
     }
   }, []);
   
+  // Check for character notification when tasks completed changes
+  useEffect(() => {
+    if (favoriteCharacter && todayTasksCompleted >= 3 && triggeredBadHabitsToday.size === 0) {
+      // Show notification only when exactly hitting 3 tasks
+      if (todayTasksCompleted === 3) {
+        showCharacterNotification();
+      }
+    }
+  }, [todayTasksCompleted, triggeredBadHabitsToday.size, favoriteCharacter]);
+  
   // Utility function: Update or add points/tasks for a specific date in streaks
   const updateDailyStreakForDate = (targetDate: Date, addPoints: number, addTasksCompleted: number = 0) => {
     console.log(`Updating streak for date: ${targetDate}, points: ${addPoints}, tasks: ${addTasksCompleted}`);
@@ -580,7 +650,6 @@ const Index = () => {
     setDailyStreaks(prevStreaks => {
       const targetDateString = startOfDay(targetDate);
       
-      // Find existing streak for this date
       const idx = prevStreaks.findIndex(s => {
         if (!s.date) return false;
         
@@ -592,7 +661,6 @@ const Index = () => {
       });
       
       if (idx >= 0) {
-        // Update existing streak
         const updated = [...prevStreaks];
         updated[idx] = {
           ...updated[idx],
@@ -602,7 +670,6 @@ const Index = () => {
         console.log('Updated existing streak:', updated[idx]);
         return updated;
       } else {
-        // Add new streak
         const newStreak = {
           date: targetDateString,
           points: Math.max(0, addPoints),
@@ -613,7 +680,6 @@ const Index = () => {
       }
     });
     
-    // Update today's counters if this is for today
     const isToday = isSameDay(targetDate, startOfDay(new Date()));
     if (isToday) {
       setTodayPoints(prev => Math.max(0, prev + addPoints));
@@ -628,7 +694,6 @@ const Index = () => {
     const isToday = isSameDay(forDate, startOfDay(new Date()));
     let actualPointsToAdd = pointsToAdd;
 
-    // Only apply daily limits for today
     if (isToday) {
       let remainingDailyXP = MAX_DAILY_XP - dailyXPEarned;
       
@@ -644,13 +709,11 @@ const Index = () => {
         }
       }
       
-      // Update total points and daily XP only for today
       setPoints(prev => prev + actualPointsToAdd);
       setSpendablePoints(prev => prev + actualPointsToAdd);
       setDailyXPEarned(prev => prev + actualPointsToAdd);
     }
     
-    // ALWAYS update the streak calendar regardless of date
     updateDailyStreakForDate(forDate, actualPointsToAdd, 0);
     
     console.log(`Added ${actualPointsToAdd} points for date: ${forDate}`);
@@ -802,6 +865,36 @@ const Index = () => {
         points={points} 
       />
       
+      {/* Character Selection Dialog */}
+      <Dialog open={showCharacterDialog} onOpenChange={setShowCharacterDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>🎉 Congratulations on reaching Level 3!</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <p>You've unlocked character motivation! Choose your favorite character who will cheer you on when you complete 3+ tasks without any bad habits.</p>
+            <div className="space-y-2">
+              <Label htmlFor="character">Enter your favorite character name:</Label>
+              <Input
+                id="character"
+                placeholder="e.g., Bakugo, Naruto, Goku, Luffy..."
+                value={characterInput}
+                onChange={(e) => setCharacterInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleCharacterSubmit()}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowCharacterDialog(false)}>
+                Skip for now
+              </Button>
+              <Button onClick={handleCharacterSubmit} disabled={!characterInput.trim()}>
+                Choose Character
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
       {activeTab === 'dashboard' && (
         <div className="space-y-8">
           <Dashboard
@@ -815,6 +908,15 @@ const Index = () => {
             totalBadHabits={badHabits.length}
             rewardsClaimed={rewardsClaimed}
           />
+          
+          {favoriteCharacter && (
+            <div className="bg-gradient-to-r from-purple-100 to-pink-100 p-4 rounded-lg border">
+              <p className="text-sm text-purple-700">
+                <strong>Motivation Buddy:</strong> {favoriteCharacter.charAt(0).toUpperCase() + favoriteCharacter.slice(1)} is cheering you on! 
+                Complete 3+ tasks without bad habits to get a special message! 🎯
+              </p>
+            </div>
+          )}
           
           <StreakCalendar dailyStreaks={dailyStreaks} />
         </div>
