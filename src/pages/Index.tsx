@@ -43,7 +43,8 @@ const INITIAL_REWARDS: Reward[] = [
 const Index = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading, loadProgress } = useUserProgress();
-  
+
+  // Fix: Only pass the required initial values 
   const {
     tasks, badHabits, goodHabits, rewards, points, spendablePoints, activeTab,
     setTasks, setBadHabits, setGoodHabits, setRewards, setPoints, setSpendablePoints, setActiveTab,
@@ -53,16 +54,12 @@ const Index = () => {
     handleAddGoodHabit, handleDeleteGoodHabit, handleCompleteGoodHabit,
     handleAddBadHabit, handleDeleteBadHabit, handleTriggerBadHabit,
     handleAddReward, handleDeleteReward, handleClaimReward,
-    progressLoaded
+    progressLoaded // <--- this should exist in the return object from useGameProgress
   } = useGameProgress({
     INITIAL_TASKS,
     INITIAL_BAD_HABITS,
     INITIAL_GOOD_HABITS,
-    INITIAL_REWARDS,
-    user,
-    authLoading,
-    loadProgress,
-    navigate
+    INITIAL_REWARDS
   });
 
   const {
@@ -80,6 +77,7 @@ const Index = () => {
     }
   }, [todayTasksCompleted, badHabits, favoriteCharacter, getMotivationMessage]);
 
+  // Fix: Only return the loading screen if progress is NOT loaded yet
   if (authLoading || !progressLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
