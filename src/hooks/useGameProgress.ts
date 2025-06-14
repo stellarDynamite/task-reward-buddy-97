@@ -721,5 +721,6 @@ export function useGameProgress({
     handleAddGoodHabit, handleDeleteGoodHabit, handleCompleteGoodHabit,
     handleAddBadHabit, handleDeleteBadHabit, handleTriggerBadHabit,
     handleAddReward, handleDeleteReward, handleClaimReward,
+    progressLoaded
   };
 }
