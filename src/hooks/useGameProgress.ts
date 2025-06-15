@@ -95,142 +95,75 @@ export function useGameProgress({
   const [startOfDayLevel, setStartOfDayLevel] = useState(1);
   const [dailyXPEarned, setDailyXPEarned] = useState(0);
   const [progressLoaded, setProgressLoaded] = useState(false);
-  
-  // Calculate level information with floor at startOfDayLevel
-  const [level, pointsToNextLevel, pointsNeededForNextLevel] = calculateLevel(points, startOfDayLevel);
 
-  // Helper function to check if it's actually a new day since last reset
-  const isNewDay = (lastResetDate: string | null): boolean => {
-    if (!lastResetDate) return true;
-    
-    const today = startOfDay(new Date());
-    const lastReset = startOfDay(new Date(lastResetDate));
-    
-    return !isSameDay(today, lastReset);
-  };
+  const [highestLevel, setHighestLevel] = useState(1); // <-- New state for max level ever reached
 
-  // Helper function to perform daily reset
-  const performDailyReset = (savedData: any) => {
-    console.log('Performing daily reset...');
-    
-    setTriggeredBadHabitsToday(new Set());
-    
-    if (savedData.badHabits) {
-      const parsedBadHabits = Array.isArray(savedData.badHabits) ? savedData.badHabits : JSON.parse(savedData.badHabits);
-      setBadHabits(parsedBadHabits);
-      setBadHabitsAvoided(parsedBadHabits.length);
-      console.log('Bad habits reset for new day:', parsedBadHabits);
-    } else {
-      setBadHabits(INITIAL_BAD_HABITS);
-      setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
-    }
-    
-    if (savedData.goodHabits) {
-      const parsedGoodHabits = Array.isArray(savedData.goodHabits) ? savedData.goodHabits : JSON.parse(savedData.goodHabits);
-      const renewedGoodHabits = parsedGoodHabits.map((habit: GoodHabit) => ({
-        ...habit,
-        completed: false
-      }));
-      setGoodHabits(renewedGoodHabits);
-      console.log('Good habits reset for new day:', renewedGoodHabits);
-      
-      if (!user) {
-        localStorage.setItem('goodHabits', JSON.stringify(renewedGoodHabits));
-      }
-    } else {
-      const resetInitialGoodHabits = INITIAL_GOOD_HABITS.map(habit => ({
-        ...habit,
-        completed: false
-      }));
-      setGoodHabits(resetInitialGoodHabits);
-      console.log('Initial good habits set with completed: false');
-      
-      if (!user) {
-        localStorage.setItem('goodHabits', JSON.stringify(resetInitialGoodHabits));
-      }
-    }
-    
-    if (savedData.rewards) {
-      try {
-        const parsedRewards = Array.isArray(savedData.rewards) ? savedData.rewards : JSON.parse(savedData.rewards);
-        const renewedRewards = parsedRewards.map((reward: Reward) => {
-          return { ...reward, claimed: false };
-        });
-        setRewards(renewedRewards);
-        setRewardsClaimed(0);
-        
-        if (!user) {
-          localStorage.setItem('rewards', JSON.stringify(renewedRewards));
-          const updatedStats = { 
-            rewardsClaimed: 0,
-            badHabitsAvoided: savedData.badHabits ? (Array.isArray(savedData.badHabits) ? savedData.badHabits : JSON.parse(savedData.badHabits)).length : INITIAL_BAD_HABITS.length
-          };
-          localStorage.setItem('stats', JSON.stringify(updatedStats));
-        }
-      } catch (e) {
-        console.error("Error renewing rewards:", e);
-      }
-    }
-    
-    const currentLevel = calculateLevel(savedData.points || 50, startOfDayLevel)[0];
-    setStartOfDayLevel(currentLevel);
-    setDailyXPEarned(0);
-    
-    setTodayPoints(0);
-    setTodayTasksCompleted(0);
-    
-    const today = startOfDay(new Date());
-    setDailyStreaks(prevStreaks => {
-      const existingTodayIndex = prevStreaks.findIndex(s => {
-        const streakDate = s.date instanceof Date ? s.date : new Date(s.date);
-        return streakDate && isSameDay(streakDate, today);
-      });
-      
-      if (existingTodayIndex >= 0) {
-        const updated = [...prevStreaks];
-        updated[existingTodayIndex] = {
-          ...updated[existingTodayIndex],
-          points: 0,
-          tasksCompleted: 0
-        };
-        console.log('Reset today streak entry for new day:', updated[existingTodayIndex]);
-        return updated;
+  // Calculate level information: never drop below highestLevel
+  const [level, pointsToNextLevel, pointsNeededForNextLevel] = calculateLevel(points, highestLevel);
+
+  // Helper: Update highestLevel when a new level is gained
+  const maybeUpdateHighestLevel = (newPoints: number) => {
+    const [calcLevel] = calculateLevel(newPoints, highestLevel);
+    if (calcLevel > highestLevel) {
+      setHighestLevel(calcLevel);
+      // Persist this in cloud or localStorage
+      if (user) {
+        saveProgress({ highestLevel: calcLevel });
       } else {
-        const newTodayEntry = {
-          date: today,
-          points: 0,
-          tasksCompleted: 0
-        };
-        console.log('Added new today streak entry:', newTodayEntry);
-        return [...prevStreaks, newTodayEntry];
+        localStorage.setItem("highestLevel", JSON.stringify(calcLevel));
       }
-    });
-    
-    toast.success("Your habits have been reset for a new day! 🌅", {
-      duration: 4000,
-    });
-    
-    const todayString = today.toISOString();
-    if (!user) {
-      localStorage.setItem('lastDailyReset', todayString);
-      localStorage.setItem('triggeredBadHabitsToday', JSON.stringify([]));
     }
   };
   
-  // Load progress when user logs in
+  // Patch addPoints to update highestLevel when needed
+  const addPoints = (pointsToAdd: number, forDate: Date = startOfDay(new Date())) => {
+    const isToday = isSameDay(forDate, startOfDay(new Date()));
+    let actualPointsToAdd = pointsToAdd;
+
+    if (isToday) {
+      let remainingDailyXP = MAX_DAILY_XP - dailyXPEarned;
+      
+      if (remainingDailyXP <= 0 && pointsToAdd > 0) {
+        toast.warning(`You've reached the daily XP limit (${MAX_DAILY_XP} XP)`, { duration: 5000 });
+        return 0;
+      }
+      
+      if (pointsToAdd > 0) {
+        actualPointsToAdd = Math.min(pointsToAdd, remainingDailyXP);
+        if (actualPointsToAdd < pointsToAdd) {
+          toast.warning(`Only added ${actualPointsToAdd} XP (daily limit: ${MAX_DAILY_XP} XP)`, { duration: 5000 });
+        }
+      }
+      
+      setPoints(prev => {
+        const newPts = prev + actualPointsToAdd;
+        maybeUpdateHighestLevel(newPts); // Patch: update highestLevel here
+        return newPts;
+      });
+      setSpendablePoints(prev => prev + actualPointsToAdd);
+      setDailyXPEarned(prev => prev + actualPointsToAdd);
+    }
+    
+    updateDailyStreakForDate(forDate, actualPointsToAdd, 0);
+    
+    console.log(`Added ${actualPointsToAdd} points for date: ${forDate}`);
+    return actualPointsToAdd;
+  };
+
+  // On load: try to load highestLevel from Supabase/localStorage
   useEffect(() => {
     const initializeProgress = async () => {
       if (authLoading) return;
-      
       if (user && !progressLoaded) {
-        console.log('Loading user progress from Supabase...');
         const cloudProgress = await loadProgress();
-
-        // --- SUPABASE: Always prefer cloud streak data if present ---
         if (cloudProgress) {
-          console.log('Loaded cloud progress:', cloudProgress);
-
-          // Streak calendar - always prefer Supabase data for logged-in users!
+          // Highest level (cloud): fallback logic for legacy users
+          setHighestLevel(
+            typeof cloudProgress.highestLevel === "number"
+              ? cloudProgress.highestLevel
+              : (typeof cloudProgress.level === "number" ? cloudProgress.level : 1)
+          );
+          // --- SUPABASE: Always prefer cloud streak data if present ---
           if (Array.isArray(cloudProgress.daily_streaks)) {
             setDailyStreaks(
               cloudProgress.daily_streaks.map((streak: any) => ({
@@ -285,11 +218,17 @@ export function useGameProgress({
             rewards,
             points,
             daily_xp_earned: dailyXPEarned,
-            daily_streaks: dailyStreaks.map(s => ({ ...s, date: s.date instanceof Date ? s.date.toISOString() : s.date }))
+            daily_streaks: dailyStreaks.map(s => ({ ...s, date: s.date instanceof Date ? s.date.toISOString() : s.date })),
+            highestLevel,
           });
         }
         setProgressLoaded(true);
       } else if (!user) {
+        // Guests: localStorage
+        const savedHighest = localStorage.getItem("highestLevel");
+        if (savedHighest) {
+          setHighestLevel(JSON.parse(savedHighest));
+        }
         // Load progress from localStorage...
         console.log('Loading progress from localStorage...');
         
@@ -461,7 +400,6 @@ export function useGameProgress({
         setProgressLoaded(true);
       }
     };
-
     initializeProgress();
   }, [user, authLoading, progressLoaded]);
   
@@ -489,14 +427,14 @@ export function useGameProgress({
             ...s,
             date: s.date instanceof Date ? s.date.toISOString() : s.date // Always store as ISO
           })),
+          highestLevel,
         });
       };
       const timeoutId = setTimeout(saveToCloud, 1000);
       return () => clearTimeout(timeoutId);
     }
-  }, [user, progressLoaded, tasks, badHabits, goodHabits, rewards, points, dailyXPEarned, dailyStreaks]);
-  
-  // Save to localStorage if not authenticated
+  }, [user, progressLoaded, tasks, badHabits, goodHabits, rewards, points, dailyXPEarned, dailyStreaks, highestLevel]);
+
   useEffect(() => {
     if (!user && progressLoaded) {
       const streaksToSave = dailyStreaks.map(streak => ({
@@ -518,8 +456,9 @@ export function useGameProgress({
       
       localStorage.setItem('startOfDayLevel', JSON.stringify(startOfDayLevel));
       localStorage.setItem('dailyXPEarned', JSON.stringify(dailyXPEarned));
+      localStorage.setItem('highestLevel', JSON.stringify(highestLevel));
     }
-  }, [user, progressLoaded, tasks, badHabits, goodHabits, rewards, points, spendablePoints, dailyStreaks, startOfDayLevel, dailyXPEarned, rewardsClaimed, badHabitsAvoided]);
+  }, [user, progressLoaded, tasks, badHabits, goodHabits, rewards, points, spendablePoints, dailyStreaks, startOfDayLevel, dailyXPEarned, rewardsClaimed, badHabitsAvoided, highestLevel]);
   
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -571,37 +510,6 @@ export function useGameProgress({
         setTodayTasksCompleted(prev => Math.max(0, prev + addTasksCompleted));
       }
     }
-  };
-
-  // Add points for a given date - ALWAYS record in streak calendar
-  const addPoints = (pointsToAdd: number, forDate: Date = startOfDay(new Date())) => {
-    const isToday = isSameDay(forDate, startOfDay(new Date()));
-    let actualPointsToAdd = pointsToAdd;
-
-    if (isToday) {
-      let remainingDailyXP = MAX_DAILY_XP - dailyXPEarned;
-      
-      if (remainingDailyXP <= 0 && pointsToAdd > 0) {
-        toast.warning(`You've reached the daily XP limit (${MAX_DAILY_XP} XP)`, { duration: 5000 });
-        return 0;
-      }
-      
-      if (pointsToAdd > 0) {
-        actualPointsToAdd = Math.min(pointsToAdd, remainingDailyXP);
-        if (actualPointsToAdd < pointsToAdd) {
-          toast.warning(`Only added ${actualPointsToAdd} XP (daily limit: ${MAX_DAILY_XP} XP)`, { duration: 5000 });
-        }
-      }
-      
-      setPoints(prev => prev + actualPointsToAdd);
-      setSpendablePoints(prev => prev + actualPointsToAdd);
-      setDailyXPEarned(prev => prev + actualPointsToAdd);
-    }
-    
-    updateDailyStreakForDate(forDate, actualPointsToAdd, 0);
-    
-    console.log(`Added ${actualPointsToAdd} points for date: ${forDate}`);
-    return actualPointsToAdd;
   };
 
   // --- Task Completion ---
