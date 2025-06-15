@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -40,7 +39,7 @@ export function useUserProgress() {
 
       if (!data) return null;
 
-      // Patch: allow loading even if highestLevel column does not exist yet
+      // Support legacy (missing highestLevel) and new data
       const highestLevel: number =
         typeof (data as any).highestLevel === 'number'
           ? (data as any).highestLevel

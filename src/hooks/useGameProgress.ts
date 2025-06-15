@@ -128,15 +128,14 @@ export function useGameProgress({
 
   const [highestLevel, setHighestLevel] = useState(1); // <-- New state for max level ever reached
 
-  // Calculate level information: never drop below highestLevel
+  // Patch all level calculation logic to always use highestLevel.
   const [level, pointsToNextLevel, pointsNeededForNextLevel] = calculateLevel(points, highestLevel);
 
-  // Helper: Update highestLevel when a new level is gained
+  // Helper: Update highestLevel when a new level is gained, including cloud sync.
   const maybeUpdateHighestLevel = (newPoints: number) => {
     const [calcLevel] = calculateLevel(newPoints, highestLevel);
     if (calcLevel > highestLevel) {
       setHighestLevel(calcLevel);
-      // Persist this in cloud or localStorage
       if (user) {
         saveProgress({ highestLevel: calcLevel });
       } else {
@@ -240,7 +239,7 @@ export function useGameProgress({
           }
           toast.success("Progress loaded from your account!", { duration: 3000 });
         } else {
-          // No cloud progress found, push current local state
+          // No cloud progress found, push current local state (now includes highestLevel!)
           await saveProgress({
             tasks,
             bad_habits: badHabits,
@@ -248,7 +247,10 @@ export function useGameProgress({
             rewards,
             points,
             daily_xp_earned: dailyXPEarned,
-            daily_streaks: dailyStreaks.map(s => ({ ...s, date: s.date instanceof Date ? s.date.toISOString() : s.date })),
+            daily_streaks: dailyStreaks.map(s => ({
+              ...s,
+              date: s.date instanceof Date ? s.date.toISOString() : s.date // Always store as ISO
+            })),
             highestLevel,
           });
         }
