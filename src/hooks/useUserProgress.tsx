@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -6,13 +7,13 @@ import { toast } from '@/hooks/use-toast';
 export interface UserProgressData {
   points: number;
   level: number;
-  highestLevel: number;    // <-- NEW: track highest level ever achieved
+  highestLevel: number; // <-- track highest level ever achieved
   tasks: any[];
   bad_habits: any[];
   good_habits: any[];
   rewards: any[];
   daily_xp_earned: number;
-  daily_streaks: any[]; // Added for streak calendar sync
+  daily_streaks: any[]; // For streak calendar sync
 }
 
 export function useUserProgress() {
@@ -32,18 +33,23 @@ export function useUserProgress() {
         .eq('user_id', user.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+      if (error && error.code !== 'PGRST116') {
         console.error('Error loading progress:', error);
         return null;
       }
 
       if (!data) return null;
 
-      // Convert Json types to arrays and ensure proper structure
+      // Patch: allow loading even if highestLevel column does not exist yet
+      const highestLevel: number =
+        typeof (data as any).highestLevel === 'number'
+          ? (data as any).highestLevel
+          : (typeof data.level === 'number' ? data.level : 1);
+
       return {
         points: data.points || 0,
         level: data.level || 1,
-        highestLevel: data.highestLevel || data.level || 1,   // Use saved, or fallback to old
+        highestLevel,
         tasks: Array.isArray(data.tasks) ? data.tasks : [],
         bad_habits: Array.isArray(data.bad_habits) ? data.bad_habits : [],
         good_habits: Array.isArray(data.good_habits) ? data.good_habits : [],
@@ -65,8 +71,6 @@ export function useUserProgress() {
 
     try {
       setSyncing(true);
-
-      // First try to update existing record
       const { data: existingData, error: fetchError } = await supabase
         .from('user_progress')
         .select('id')
@@ -74,7 +78,6 @@ export function useUserProgress() {
         .single();
 
       if (existingData) {
-        // Update existing record
         const { error } = await supabase
           .from('user_progress')
           .update({
@@ -92,7 +95,6 @@ export function useUserProgress() {
           });
         }
       } else {
-        // Insert new record
         const { error } = await supabase
           .from('user_progress')
           .insert({

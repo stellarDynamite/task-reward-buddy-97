@@ -56,6 +56,36 @@ const calculateLevel = (points: number, startOfDayLevel: number): [number, numbe
   return [level, pointsInCurrentLevel, pointsNeededForNextLevel];
 };
 
+// --- Add isNewDay helper ---
+function isNewDay(lastResetDateIso?: string | null): boolean {
+  if (!lastResetDateIso) return false;
+  const last = new Date(lastResetDateIso);
+  const now = new Date();
+  // Compare at day granularity
+  return (
+    last.getUTCFullYear() !== now.getUTCFullYear() ||
+    last.getUTCMonth() !== now.getUTCMonth() ||
+    last.getUTCDate() !== now.getUTCDate()
+  );
+}
+
+// --- Add performDailyReset helper ---
+function performDailyReset({
+  badHabits,
+  goodHabits,
+  rewards,
+  points
+}: {
+  badHabits: any;
+  goodHabits: any;
+  rewards: any;
+  points: number;
+}) {
+  // Here, you likely want to reset all "completed"/"triggered"/"claimed" fields
+  // Patch: Find the right hooks for actual state updates in your component if needed
+  // For now, this is a no-op placeholder!
+}
+
 export function useGameProgress({
   INITIAL_TASKS,
   INITIAL_BAD_HABITS,
