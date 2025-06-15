@@ -43,6 +43,7 @@ export type Database = {
           daily_streaks: Json | null
           daily_xp_earned: number | null
           good_habits: Json | null
+          highestlevel: number | null
           id: string
           last_daily_reset: string | null
           level: number | null
@@ -58,6 +59,7 @@ export type Database = {
           daily_streaks?: Json | null
           daily_xp_earned?: number | null
           good_habits?: Json | null
+          highestlevel?: number | null
           id?: string
           last_daily_reset?: string | null
           level?: number | null
@@ -73,6 +75,7 @@ export type Database = {
           daily_streaks?: Json | null
           daily_xp_earned?: number | null
           good_habits?: Json | null
+          highestlevel?: number | null
           id?: string
           last_daily_reset?: string | null
           level?: number | null
