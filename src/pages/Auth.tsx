@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, ArrowLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { validateEmail, validatePassword } from '@/utils/validation';
 import { authRateLimiter } from '@/utils/rateLimiter';
@@ -20,6 +20,8 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -150,6 +152,101 @@ const Auth = () => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!forgotPasswordEmail.trim()) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const emailValidation = validateEmail(forgotPasswordEmail);
+    if (!emailValidation.isValid) {
+      toast({
+        title: "Invalid email",
+        description: emailValidation.message || "Please enter a valid email address",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const { error } = await supabase.auth.signInWithOtp({
+        email: forgotPasswordEmail.trim().toLowerCase(),
+        options: {
+          emailRedirectTo: `${window.location.origin}/`
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Magic link sent!",
+        description: "Check your email and click the link to sign in without a password.",
+      });
+
+      setForgotPasswordEmail('');
+      setShowForgotPassword(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send magic link",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (showForgotPassword) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-theme-purple-light/20 to-theme-purple/20 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold bg-gradient-to-r from-theme-purple to-theme-purple-light bg-clip-text text-transparent">
+              Forgot Password
+            </CardTitle>
+            <CardDescription>
+              Enter your email and we'll send you a magic link to sign in
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="forgot-email">Email</Label>
+              <Input
+                id="forgot-email"
+                type="email"
+                placeholder="Enter your email"
+                value={forgotPasswordEmail}
+                onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <Button 
+              onClick={handleForgotPassword} 
+              className="w-full"
+              disabled={loading}
+            >
+              {loading ? 'Sending Magic Link...' : 'Send Magic Link'}
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setShowForgotPassword(false)}
+              className="w-full flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Sign In
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-theme-purple-light/20 to-theme-purple/20 p-4">
       <Card className="w-full max-w-md">
@@ -228,6 +325,13 @@ const Auth = () => {
                 disabled={loading}
               >
                 {loading ? 'Signing In...' : 'Sign In'}
+              </Button>
+              <Button
+                variant="link"
+                onClick={() => setShowForgotPassword(true)}
+                className="w-full text-sm"
+              >
+                Forgot your password?
               </Button>
             </TabsContent>
             
