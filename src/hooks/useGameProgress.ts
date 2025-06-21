@@ -69,23 +69,6 @@ function isNewDay(lastResetDateIso?: string | null): boolean {
   );
 }
 
-// --- Add performDailyReset helper ---
-function performDailyReset({
-  badHabits,
-  goodHabits,
-  rewards,
-  points
-}: {
-  badHabits: any;
-  goodHabits: any;
-  rewards: any;
-  points: number;
-}) {
-  // Here, you likely want to reset all "completed"/"triggered"/"claimed" fields
-  // Patch: Find the right hooks for actual state updates in your component if needed
-  // For now, this is a no-op placeholder!
-}
-
 export function useGameProgress({
   INITIAL_TASKS,
   INITIAL_BAD_HABITS,
@@ -130,6 +113,32 @@ export function useGameProgress({
 
   // Patch all level calculation logic to always use highestLevel.
   const [level, pointsToNextLevel, pointsNeededForNextLevel] = calculateLevel(points, highestLevel);
+
+  // Helper function to perform daily reset
+  const performDailyReset = (loadedTasks: Task[], loadedBadHabits: BadHabit[], loadedGoodHabits: GoodHabit[], loadedRewards: Reward[]) => {
+    console.log('Performing daily reset...');
+    
+    // Reset tasks completion status
+    const resetTasks = loadedTasks.map(task => ({ ...task, completed: false }));
+    setTasks(resetTasks);
+    
+    // Reset good habits completion status
+    const resetGoodHabits = loadedGoodHabits.map(habit => ({ ...habit, completed: false }));
+    setGoodHabits(resetGoodHabits);
+    
+    // Reset bad habits tracking for today
+    setTriggeredBadHabitsToday(new Set());
+    setBadHabitsAvoided(loadedBadHabits.length);
+    
+    // Reset daily XP earned
+    setDailyXPEarned(0);
+    
+    // Store the new reset date
+    const todayString = startOfDay(new Date()).toISOString();
+    localStorage.setItem('lastDailyReset', todayString);
+    
+    console.log('Daily reset completed - all habits and tasks reset for new day');
+  };
 
   // Helper: Update highestLevel when a new level is gained, including cloud sync.
   const maybeUpdateHighestLevel = (newPoints: number) => {
@@ -210,23 +219,18 @@ export function useGameProgress({
           const lastResetDate = lastResetFromStorage || new Date().toISOString();
           if (isNewDay(lastResetDate)) {
             console.log('New day detected for authenticated user, performing reset...');
-            performDailyReset({
-              badHabits: cloudProgress.bad_habits,
-              goodHabits: cloudProgress.good_habits,
-              rewards: cloudProgress.rewards,
-              points: cloudProgress.points
-            });
+            performDailyReset(
+              cloudProgress.tasks || INITIAL_TASKS,
+              cloudProgress.bad_habits || INITIAL_BAD_HABITS,
+              cloudProgress.good_habits || INITIAL_GOOD_HABITS,
+              cloudProgress.rewards || INITIAL_REWARDS
+            );
 
-            setTasks(cloudProgress.tasks || INITIAL_TASKS);
             setPoints(cloudProgress.points || 50);
             setSpendablePoints(cloudProgress.points || 50);
-            setDailyXPEarned(0);
 
             // DO NOT wipe dailyStreaks!
             // Today's entry will be appended by updateDailyStreakForDate if user acts today
-
-            const todayString = startOfDay(new Date()).toISOString();
-            localStorage.setItem('lastDailyReset', todayString);
           } else {
             setTasks(cloudProgress.tasks || INITIAL_TASKS);
             setBadHabits(cloudProgress.bad_habits || INITIAL_BAD_HABITS);
@@ -280,6 +284,44 @@ export function useGameProgress({
         console.log('Last reset date from localStorage:', lastResetDate);
         console.log('Is new day?', isNewDay(lastResetDate));
         
+        // Parse saved data first
+        let parsedTasks = INITIAL_TASKS;
+        let parsedBadHabits = INITIAL_BAD_HABITS;
+        let parsedGoodHabits = INITIAL_GOOD_HABITS;
+        let parsedRewards = INITIAL_REWARDS;
+        
+        if (savedTasks) {
+          try {
+            parsedTasks = JSON.parse(savedTasks).map((task: Task) => parseDates(task));
+          } catch (e) {
+            console.error("Error parsing tasks:", e);
+          }
+        }
+        
+        if (savedBadHabits) {
+          try {
+            parsedBadHabits = JSON.parse(savedBadHabits);
+          } catch (e) {
+            console.error("Error parsing bad habits:", e);
+          }
+        }
+        
+        if (savedGoodHabits) {
+          try {
+            parsedGoodHabits = JSON.parse(savedGoodHabits);
+          } catch (e) {
+            console.error("Error parsing good habits:", e);
+          }
+        }
+        
+        if (savedRewards) {
+          try {
+            parsedRewards = JSON.parse(savedRewards);
+          } catch (e) {
+            console.error("Error parsing rewards:", e);
+          }
+        }
+        
         // Load streaks FIRST with proper date parsing
         if (savedStreaks) {
           try {
@@ -322,22 +364,7 @@ export function useGameProgress({
         
         if (isNewDay(lastResetDate)) {
           console.log('New day detected for local user, performing reset...');
-          performDailyReset({
-            badHabits: savedBadHabits,
-            goodHabits: savedGoodHabits,
-            rewards: savedRewards,
-            points: savedPoints ? JSON.parse(savedPoints) : 50
-          });
-          
-          if (savedTasks) {
-            try {
-              const parsedTasks = JSON.parse(savedTasks);
-              setTasks(parsedTasks.map((task: Task) => parseDates(task)));
-            } catch (e) {
-              console.error("Error parsing tasks:", e);
-              setTasks(INITIAL_TASKS);
-            }
-          }
+          performDailyReset(parsedTasks, parsedBadHabits, parsedGoodHabits, parsedRewards);
           
           if (savedPoints) setPoints(JSON.parse(savedPoints));
           if (savedSpendablePoints) {
@@ -348,15 +375,10 @@ export function useGameProgress({
         } else {
           console.log('Same day for local user, loading normally...');
           
-          if (savedTasks) {
-            try {
-              const parsedTasks = JSON.parse(savedTasks);
-              setTasks(parsedTasks.map((task: Task) => parseDates(task)));
-            } catch (e) {
-              console.error("Error parsing tasks:", e);
-              setTasks(INITIAL_TASKS);
-            }
-          }
+          setTasks(parsedTasks);
+          setBadHabits(parsedBadHabits);
+          setGoodHabits(parsedGoodHabits);
+          setRewards(parsedRewards);
           
           if (savedPoints) setPoints(JSON.parse(savedPoints));
           if (savedSpendablePoints) {
@@ -365,64 +387,18 @@ export function useGameProgress({
             setSpendablePoints(JSON.parse(savedPoints));
           }
           
-          if (savedBadHabits) {
+          if (savedStats) {
             try {
-              const parsedBadHabits = JSON.parse(savedBadHabits);
-              setBadHabits(parsedBadHabits);
-              console.log('Loaded bad habits from localStorage:', parsedBadHabits);
-              
-              if (savedStats) {
-                try {
-                  const stats = JSON.parse(savedStats);
-                  setRewardsClaimed(stats.rewardsClaimed || 0);
-                  setBadHabitsAvoided(stats.badHabitsAvoided !== undefined ? stats.badHabitsAvoided : parsedBadHabits.length);
-                  console.log('Loaded badHabitsAvoided from stats:', stats.badHabitsAvoided);
-                } catch (e) {
-                  console.error("Error parsing stats:", e);
-                  setBadHabitsAvoided(parsedBadHabits.length);
-                }
-              } else {
-                setBadHabitsAvoided(parsedBadHabits.length);
-              }
+              const stats = JSON.parse(savedStats);
+              setRewardsClaimed(stats.rewardsClaimed || 0);
+              setBadHabitsAvoided(stats.badHabitsAvoided !== undefined ? stats.badHabitsAvoided : parsedBadHabits.length);
+              console.log('Loaded badHabitsAvoided from stats:', stats.badHabitsAvoided);
             } catch (e) {
-              console.error("Error parsing bad habits:", e);
-              setBadHabits(INITIAL_BAD_HABITS);
-              setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
+              console.error("Error parsing stats:", e);
+              setBadHabitsAvoided(parsedBadHabits.length);
             }
           } else {
-            setBadHabits(INITIAL_BAD_HABITS);
-            if (savedStats) {
-              try {
-                const stats = JSON.parse(savedStats);
-                setRewardsClaimed(stats.rewardsClaimed || 0);
-                setBadHabitsAvoided(stats.badHabitsAvoided !== undefined ? stats.badHabitsAvoided : INITIAL_BAD_HABITS.length);
-              } catch (e) {
-                console.error("Error parsing stats:", e);
-                setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
-              }
-            } else {
-              setBadHabitsAvoided(INITIAL_BAD_HABITS.length);
-            }
-          }
-          
-          if (savedGoodHabits) {
-            try {
-              const parsedGoodHabits = JSON.parse(savedGoodHabits);
-              setGoodHabits(parsedGoodHabits);
-            } catch (e) {
-              console.error("Error parsing good habits:", e);
-              setGoodHabits(INITIAL_GOOD_HABITS);
-            }
-          }
-          
-          if (savedRewards) {
-            try {
-              const parsedRewards = JSON.parse(savedRewards);
-              setRewards(parsedRewards);
-            } catch (e) {
-              console.error("Error parsing rewards:", e);
-              setRewards(INITIAL_REWARDS);
-            }
+            setBadHabitsAvoided(parsedBadHabits.length);
           }
           
           if (savedStartOfDayLevel) setStartOfDayLevel(JSON.parse(savedStartOfDayLevel));
