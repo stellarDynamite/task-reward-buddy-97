@@ -114,7 +114,7 @@ export function useGameProgress({
   // Patch all level calculation logic to always use highestLevel.
   const [level, pointsToNextLevel, pointsNeededForNextLevel] = calculateLevel(points, highestLevel);
 
-  // Helper function to perform daily reset
+  // Helper function to perform daily reset - FIXED: Only reset daily values, not persistent stats
   const performDailyReset = (loadedTasks: Task[], loadedBadHabits: BadHabit[], loadedGoodHabits: GoodHabit[], loadedRewards: Reward[]) => {
     console.log('Performing daily reset...');
     
@@ -128,6 +128,8 @@ export function useGameProgress({
     
     // Reset bad habits tracking for today
     setTriggeredBadHabitsToday(new Set());
+    
+    // FIXED: Reset badHabitsAvoided to the current number of bad habits (daily reset)
     setBadHabitsAvoided(loadedBadHabits.length);
     
     // Reset daily XP earned
@@ -239,7 +241,11 @@ export function useGameProgress({
             setPoints(cloudProgress.points || 50);
             setSpendablePoints(cloudProgress.points || 50);
             setDailyXPEarned(cloudProgress.daily_xp_earned || 0);
-            setBadHabitsAvoided((cloudProgress.bad_habits || INITIAL_BAD_HABITS).length);
+            
+            // FIXED: Load badHabitsAvoided from saved data instead of always resetting
+            // Calculate badHabitsAvoided based on triggered habits
+            const triggeredHabits = new Set(JSON.parse(localStorage.getItem('triggeredBadHabitsToday') || '[]'));
+            setBadHabitsAvoided((cloudProgress.bad_habits || INITIAL_BAD_HABITS).length - triggeredHabits.size);
           }
           toast.success("Progress loaded from your account!", { duration: 3000 });
         } else {
@@ -352,11 +358,13 @@ export function useGameProgress({
           }
         }
         
+        let triggeredHabitsSet = new Set<string>();
         if (savedTriggeredBadHabits) {
           try {
             const parsed = JSON.parse(savedTriggeredBadHabits);
             console.log('Loading triggered bad habits from localStorage:', parsed);
-            setTriggeredBadHabitsToday(new Set(parsed));
+            triggeredHabitsSet = new Set(parsed);
+            setTriggeredBadHabitsToday(triggeredHabitsSet);
           } catch (e) {
             console.error("Error parsing triggered bad habits:", e);
           }
@@ -387,18 +395,22 @@ export function useGameProgress({
             setSpendablePoints(JSON.parse(savedPoints));
           }
           
+          // FIXED: Calculate badHabitsAvoided correctly based on triggered habits
           if (savedStats) {
             try {
               const stats = JSON.parse(savedStats);
               setRewardsClaimed(stats.rewardsClaimed || 0);
-              setBadHabitsAvoided(stats.badHabitsAvoided !== undefined ? stats.badHabitsAvoided : parsedBadHabits.length);
-              console.log('Loaded badHabitsAvoided from stats:', stats.badHabitsAvoided);
+              
+              // Calculate correctly: total bad habits minus triggered habits
+              const calculatedAvoided = parsedBadHabits.length - triggeredHabitsSet.size;
+              setBadHabitsAvoided(calculatedAvoided);
+              console.log('Calculated badHabitsAvoided:', calculatedAvoided, 'from total:', parsedBadHabits.length, 'triggered:', triggeredHabitsSet.size);
             } catch (e) {
               console.error("Error parsing stats:", e);
-              setBadHabitsAvoided(parsedBadHabits.length);
+              setBadHabitsAvoided(parsedBadHabits.length - triggeredHabitsSet.size);
             }
           } else {
-            setBadHabitsAvoided(parsedBadHabits.length);
+            setBadHabitsAvoided(parsedBadHabits.length - triggeredHabitsSet.size);
           }
           
           if (savedStartOfDayLevel) setStartOfDayLevel(JSON.parse(savedStartOfDayLevel));
