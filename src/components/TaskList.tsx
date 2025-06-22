@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Check, Plus, Trash2, Clock, Calendar, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -241,6 +240,21 @@ const TaskList = ({
     }
     
     setIsEditDialogOpen(true);
+  };
+
+  const handleClearAllCompleted = () => {
+    const completedTasks = tasks.filter(task => task.completed);
+    
+    if (completedTasks.length === 0) {
+      toast.error('No completed tasks to clear');
+      return;
+    }
+    
+    completedTasks.forEach(task => {
+      onDeleteTask(task.id);
+    });
+    
+    toast.success(`Cleared ${completedTasks.length} completed task${completedTasks.length === 1 ? '' : 's'}`);
   };
 
   const hourOptions = Array.from({ length: 12 }, (_, i) => {
@@ -647,7 +661,18 @@ const TaskList = ({
       
       {tasks.some(task => task.completed) && (
         <div className="mt-8">
-          <h3 className="text-lg font-medium text-muted-foreground mb-3">Completed Tasks</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-medium text-muted-foreground">Completed Tasks</h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearAllCompleted}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="h-3 w-3 mr-1" />
+              Clear All
+            </Button>
+          </div>
           <div className="space-y-2 opacity-70">
             {tasks.filter(task => task.completed).map((task) => (
               <Card key={task.id} className="bg-muted">
