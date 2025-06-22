@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { startOfDay, isSameDay } from 'date-fns';
 import { Task } from '@/components/TaskList';
@@ -56,9 +57,9 @@ const calculateLevel = (points: number, startOfDayLevel: number): [number, numbe
   return [level, pointsInCurrentLevel, pointsNeededForNextLevel];
 };
 
-// --- Add isNewDay helper ---
+// FIXED: Handle when lastResetDateIso is null/undefined - should trigger reset
 function isNewDay(lastResetDateIso?: string | null): boolean {
-  if (!lastResetDateIso) return false;
+  if (!lastResetDateIso) return true; // FIXED: No previous reset = trigger reset
   const last = new Date(lastResetDateIso);
   const now = new Date();
   // Compare at day granularity
