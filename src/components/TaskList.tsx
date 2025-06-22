@@ -69,6 +69,23 @@ const isDeadlinePassed = (deadline?: Date | string): boolean => {
   return isPast(dateObj);
 };
 
+const sortTasksByDeadline = (tasks: Task[]): Task[] => {
+  return [...tasks].sort((a, b) => {
+    // If neither has a deadline, maintain original order
+    if (!a.deadline && !b.deadline) return 0;
+    
+    // Tasks with deadlines come before tasks without deadlines
+    if (a.deadline && !b.deadline) return -1;
+    if (!a.deadline && b.deadline) return 1;
+    
+    // Both have deadlines, sort by nearest deadline first
+    const dateA = a.deadline instanceof Date ? a.deadline : parseISO(a.deadline as string);
+    const dateB = b.deadline instanceof Date ? b.deadline : parseISO(b.deadline as string);
+    
+    return dateA.getTime() - dateB.getTime();
+  });
+};
+
 const TaskList = ({ 
   tasks, 
   onAddTask, 
@@ -325,6 +342,9 @@ const TaskList = ({
       }
     }
   };
+
+  // Sort incomplete tasks by deadline
+  const sortedIncompleteTasks = sortTasksByDeadline(tasks.filter(task => !task.completed));
 
   return (
     <div className="space-y-4">
@@ -606,7 +626,7 @@ const TaskList = ({
         </div>
       ) : (
         <div className="space-y-3">
-          {tasks.filter(task => !task.completed).map((task) => (
+          {sortedIncompleteTasks.map((task) => (
             <Card 
               key={task.id} 
               className={`task-card ${task.completed ? 'bg-muted' : ''} 
