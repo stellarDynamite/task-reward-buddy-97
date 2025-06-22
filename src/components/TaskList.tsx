@@ -250,6 +250,7 @@ const TaskList = ({
       return;
     }
     
+    // Clear all completed tasks at once
     completedTasks.forEach(task => {
       onDeleteTask(task.id);
     });
