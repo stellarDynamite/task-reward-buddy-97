@@ -32,27 +32,32 @@ const parseDates = <T extends Record<string, any>>(obj: T): T => {
   return result;
 };
 
-// Calculate points needed for each level
+// Calculate points needed for each level: 100, 150, 200, 250, etc.
 const getPointsNeededForLevel = (level: number): number => {
-  return Math.floor(100 * Math.pow(1.5, level - 1));
+  return 100 + (level - 1) * 50;
 };
 
 // Calculate current level based on total points, but never decrease
 const calculateLevel = (points: number, startOfDayLevel: number): [number, number, number] => {
   let level = 1;
-  let totalPointsNeeded = getPointsNeededForLevel(level);
-  let previousLevelPoints = 0;
+  let totalPointsUsed = 0;
   
-  while (points >= totalPointsNeeded) {
+  // Keep leveling up while we have enough points
+  while (true) {
+    const pointsNeededForThisLevel = getPointsNeededForLevel(level);
+    if (points < totalPointsUsed + pointsNeededForThisLevel) {
+      break;
+    }
+    totalPointsUsed += pointsNeededForThisLevel;
     level++;
-    previousLevelPoints = totalPointsNeeded;
-    totalPointsNeeded = getPointsNeededForLevel(level);
   }
   
+  // Never decrease level from start of day
   level = Math.max(level, startOfDayLevel);
   
-  const pointsInCurrentLevel = Math.max(0, points - previousLevelPoints);
-  const pointsNeededForNextLevel = getPointsNeededForLevel(level + 1) - previousLevelPoints;
+  // Calculate points in current level and points needed for next level
+  const pointsInCurrentLevel = Math.max(0, points - totalPointsUsed);
+  const pointsNeededForNextLevel = getPointsNeededForLevel(level);
   
   return [level, pointsInCurrentLevel, pointsNeededForNextLevel];
 };
