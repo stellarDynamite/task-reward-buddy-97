@@ -50,7 +50,7 @@ const Index = () => {
     setTasks, setBadHabits, setGoodHabits, setRewards, setPoints, setSpendablePoints, setActiveTab,
     tasksCompleted, goodHabitsCompleted, badHabitsAvoided, rewardsClaimed,
     dailyStreaks, todayPoints, todayTasksCompleted, startOfDayLevel, dailyXPEarned,
-    level, triggeredBadHabitsToday, // Add missing variables
+    level, pointsToNextLevel, pointsNeededForNextLevel, triggeredBadHabitsToday,
     handleAddTask, handleDeleteTask, handleEditTask, handleCompleteTask,
     handleAddGoodHabit, handleDeleteGoodHabit, handleCompleteGoodHabit,
     handleAddBadHabit, handleDeleteBadHabit, handleTriggerBadHabit,
@@ -119,9 +119,9 @@ const Index = () => {
         <div className="space-y-8">
           <Dashboard
             points={points}
-            level={startOfDayLevel}
-            pointsToNextLevel={0}
-            pointsNeededForNextLevel={0}
+            level={level}
+            pointsToNextLevel={pointsToNextLevel}
+            pointsNeededForNextLevel={pointsNeededForNextLevel}
             tasksCompleted={tasksCompleted}
             totalTasks={tasks.length}
             badHabitsAvoided={badHabitsAvoided}
