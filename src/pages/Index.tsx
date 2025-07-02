@@ -50,6 +50,7 @@ const Index = () => {
     setTasks, setBadHabits, setGoodHabits, setRewards, setPoints, setSpendablePoints, setActiveTab,
     tasksCompleted, goodHabitsCompleted, badHabitsAvoided, rewardsClaimed,
     dailyStreaks, todayPoints, todayTasksCompleted, startOfDayLevel, dailyXPEarned,
+    level, triggeredBadHabitsToday, // Add missing variables
     handleAddTask, handleDeleteTask, handleEditTask, handleCompleteTask,
     handleAddGoodHabit, handleDeleteGoodHabit, handleCompleteGoodHabit,
     handleAddBadHabit, handleDeleteBadHabit, handleTriggerBadHabit,
@@ -67,15 +68,24 @@ const Index = () => {
     hasReachedLevel3, setHasReachedLevel3, handleCharacterSubmit, getMotivationMessage
   } = useCharacterMotivation();
 
+  // Check if user reached level 3 and should see character dialog
   useEffect(() => {
-    if (favoriteCharacter && todayTasksCompleted >= 3 && new Set(badHabits).size === 0) {
+    if (level >= 3 && !hasReachedLevel3 && !favoriteCharacter) {
+      setHasReachedLevel3(true);
+      setShowDialog(true);
+    }
+  }, [level, hasReachedLevel3, favoriteCharacter, setHasReachedLevel3, setShowDialog]);
+
+  // Character motivation messages on task completion (only for level 3+ users with character)
+  useEffect(() => {
+    if (level >= 3 && favoriteCharacter && todayTasksCompleted >= 3 && triggeredBadHabitsToday.size === 0) {
       if (todayTasksCompleted === 3) {
         toast.success(getMotivationMessage(), {
           duration: 8000,
         });
       }
     }
-  }, [todayTasksCompleted, badHabits, favoriteCharacter, getMotivationMessage]);
+  }, [level, todayTasksCompleted, triggeredBadHabitsToday, favoriteCharacter, getMotivationMessage]);
 
   // Fix: Only return the loading screen if progress is NOT loaded yet
   if (authLoading || !progressLoaded) {
@@ -154,7 +164,7 @@ const Index = () => {
       {activeTab === 'bad-habits' && (
         <BadHabitList
           badHabits={badHabits}
-          triggeredBadHabitsToday={new Set()}
+          triggeredBadHabitsToday={triggeredBadHabitsToday}
           onAddBadHabit={handleAddBadHabit}
           onTriggerBadHabit={handleTriggerBadHabit}
           onDeleteBadHabit={handleDeleteBadHabit}

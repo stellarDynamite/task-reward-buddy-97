@@ -667,7 +667,7 @@ export function useGameProgress({
     setTasks, setBadHabits, setGoodHabits, setRewards, setPoints, setSpendablePoints, setActiveTab,
     tasksCompleted, goodHabitsCompleted, badHabitsAvoided, rewardsClaimed,
     dailyStreaks, todayPoints, todayTasksCompleted, startOfDayLevel, dailyXPEarned,
-    level, pointsToNextLevel, pointsNeededForNextLevel,
+    level, pointsToNextLevel, pointsNeededForNextLevel, triggeredBadHabitsToday,
     handleAddTask, handleDeleteTask, handleEditTask, handleCompleteTask,
     handleAddGoodHabit, handleDeleteGoodHabit, handleCompleteGoodHabit,
     handleAddBadHabit, handleDeleteBadHabit, handleTriggerBadHabit,
