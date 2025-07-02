@@ -59,6 +59,8 @@ const calculateLevel = (points: number, startOfDayLevel: number): [number, numbe
   const pointsInCurrentLevel = Math.max(0, points - totalPointsUsed);
   const pointsNeededForNextLevel = getPointsNeededForLevel(level);
   
+  console.log(`Level calc: ${points} points -> Level ${level}, ${pointsInCurrentLevel}/${pointsNeededForNextLevel} to next`);
+  
   return [level, pointsInCurrentLevel, pointsNeededForNextLevel];
 };
 
