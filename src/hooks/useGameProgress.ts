@@ -127,6 +127,10 @@ export function useGameProgress({
     const resetGoodHabits = loadedGoodHabits.map(habit => ({ ...habit, completed: false }));
     setGoodHabits(resetGoodHabits);
     
+    // Reset rewards claimed status
+    const resetRewards = loadedRewards.map(reward => ({ ...reward, claimed: false }));
+    setRewards(resetRewards);
+    
     // Reset bad habits tracking for today
     setTriggeredBadHabitsToday(new Set());
     
@@ -140,7 +144,7 @@ export function useGameProgress({
     const todayString = startOfDay(new Date()).toISOString();
     localStorage.setItem('lastDailyReset', todayString);
     
-    console.log('Daily reset completed - all habits and tasks reset for new day');
+    console.log('Daily reset completed - all habits, tasks, and rewards reset for new day');
   };
 
   // Helper: Update highestLevel when a new level is gained, including cloud sync.
