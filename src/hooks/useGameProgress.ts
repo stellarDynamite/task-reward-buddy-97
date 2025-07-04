@@ -126,9 +126,8 @@ export function useGameProgress({
   const performDailyReset = (loadedTasks: Task[], loadedBadHabits: BadHabit[], loadedGoodHabits: GoodHabit[], loadedRewards: Reward[]) => {
     console.log('Performing daily reset...');
     
-    // Reset tasks completion status
-    const resetTasks = loadedTasks.map(task => ({ ...task, completed: false }));
-    setTasks(resetTasks);
+    // Tasks persist their completion status - no reset needed
+    setTasks(loadedTasks);
     
     // Reset good habits completion status
     const resetGoodHabits = loadedGoodHabits.map(habit => ({ ...habit, completed: false }));
@@ -669,13 +668,25 @@ export function useGameProgress({
     }
   };
   
+  // --- Clear Completed Tasks ---
+  const handleClearCompletedTasks = () => {
+    const completedTasks = tasks.filter(t => t.completed);
+    if (completedTasks.length === 0) {
+      toast.info("No completed tasks to clear");
+      return;
+    }
+    
+    setTasks(tasks.filter(t => !t.completed));
+    toast.success(`Cleared ${completedTasks.length} completed tasks`);
+  };
+  
   return {
     tasks, badHabits, goodHabits, rewards, points, spendablePoints, activeTab,
     setTasks, setBadHabits, setGoodHabits, setRewards, setPoints, setSpendablePoints, setActiveTab,
     tasksCompleted, goodHabitsCompleted, badHabitsAvoided, rewardsClaimed,
     dailyStreaks, todayPoints, todayTasksCompleted, startOfDayLevel, dailyXPEarned,
     level, pointsToNextLevel, pointsNeededForNextLevel, triggeredBadHabitsToday,
-    handleAddTask, handleDeleteTask, handleEditTask, handleCompleteTask,
+    handleAddTask, handleDeleteTask, handleEditTask, handleCompleteTask, handleClearCompletedTasks,
     handleAddGoodHabit, handleDeleteGoodHabit, handleCompleteGoodHabit,
     handleAddBadHabit, handleDeleteBadHabit, handleTriggerBadHabit,
     handleAddReward, handleDeleteReward, handleClaimReward,

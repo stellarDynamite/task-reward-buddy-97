@@ -51,7 +51,7 @@ const Index = () => {
     tasksCompleted, goodHabitsCompleted, badHabitsAvoided, rewardsClaimed,
     dailyStreaks, todayPoints, todayTasksCompleted, startOfDayLevel, dailyXPEarned,
     level, pointsToNextLevel, pointsNeededForNextLevel, triggeredBadHabitsToday,
-    handleAddTask, handleDeleteTask, handleEditTask, handleCompleteTask,
+    handleAddTask, handleDeleteTask, handleEditTask, handleCompleteTask, handleClearCompletedTasks,
     handleAddGoodHabit, handleDeleteGoodHabit, handleCompleteGoodHabit,
     handleAddBadHabit, handleDeleteBadHabit, handleTriggerBadHabit,
     handleAddReward, handleDeleteReward, handleClaimReward,
@@ -149,6 +149,7 @@ const Index = () => {
           onCompleteTask={handleCompleteTask}
           onDeleteTask={handleDeleteTask}
           onEditTask={handleEditTask}
+          onClearCompleted={handleClearCompletedTasks}
         />
       )}
       

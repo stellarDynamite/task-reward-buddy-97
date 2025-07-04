@@ -40,6 +40,7 @@ interface TaskListProps {
   onCompleteTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onEditTask?: (task: Task) => void;
+  onClearCompleted?: () => void;
 }
 
 const formatDeadline = (deadline?: Date | string): string => {
@@ -91,7 +92,8 @@ const TaskList = ({
   onAddTask, 
   onCompleteTask, 
   onDeleteTask,
-  onEditTask 
+  onEditTask,
+  onClearCompleted
 }: TaskListProps) => {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [taskPoints, setTaskPoints] = useState('10');
@@ -259,21 +261,6 @@ const TaskList = ({
     setIsEditDialogOpen(true);
   };
 
-  const handleClearAllCompleted = () => {
-    const completedTasks = tasks.filter(task => task.completed);
-    
-    if (completedTasks.length === 0) {
-      toast.error('No completed tasks to clear');
-      return;
-    }
-    
-    // Clear all completed tasks at once
-    completedTasks.forEach(task => {
-      onDeleteTask(task.id);
-    });
-    
-    toast.success(`Cleared ${completedTasks.length} completed task${completedTasks.length === 1 ? '' : 's'}`);
-  };
 
   const hourOptions = Array.from({ length: 12 }, (_, i) => {
     const hour = i + 1;
@@ -687,7 +674,7 @@ const TaskList = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={handleClearAllCompleted}
+              onClick={onClearCompleted}
               className="text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="h-3 w-3 mr-1" />
