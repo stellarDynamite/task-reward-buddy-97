@@ -59,7 +59,7 @@ const Dashboard = ({
         <CardContent className="text-white">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-2xl font-bold">Level {level}</h3>
-            <div className="text-2xl font-bold">{points} pts</div>
+            <div className="text-2xl font-bold">{pointsToNextLevel} pts</div>
           </div>
           <Progress value={progress} className="h-3 bg-white/20" />
           <div className="text-xs mt-1 text-white/80 flex justify-between">
