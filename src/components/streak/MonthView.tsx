@@ -1,5 +1,5 @@
 
-import { format, startOfMonth, getDaysInMonth, addDays } from 'date-fns';
+import { format, startOfMonth, getDaysInMonth, addDays, subDays, startOfDay } from 'date-fns';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,9 +34,21 @@ const MonthView = ({ currentDate, dailyStreaks, onPrevious, onNext, onCurrent, o
   const totalMonthlyTasks = monthStreaks.reduce((sum, day) => sum + day.tasksCompleted, 0);
   const avgPointsPerDay = totalMonthlyPoints / daysInMonth;
   
-  // Calculate consistency (days with > 0 points / total days)
-  const activeDays = monthStreaks.filter(day => day.points > 0).length;
-  const consistency = (activeDays / daysInMonth) * 100;
+  // Calculate consistency based on last 30 days (not calendar month)
+  const today = startOfDay(new Date());
+  const thirtyDaysAgo = subDays(today, 29); // 29 days ago + today = 30 days total
+  const last30Days = Array.from({ length: 30 }, (_, i) => addDays(thirtyDaysAgo, i));
+  
+  const last30DaysStreaks = last30Days.map(day => {
+    const streak = dailyStreaks.find(s => {
+      const streakDate = s.date instanceof Date ? startOfDay(s.date) : startOfDay(new Date(s.date));
+      return streakDate && streakDate.getTime() === day.getTime();
+    });
+    return { day, points: streak?.points || 0 };
+  });
+  
+  const activeDaysLast30 = last30DaysStreaks.filter(day => day.points > 0).length;
+  const consistency = (activeDaysLast30 / 30) * 100;
 
   return (
     <div className="space-y-4">
