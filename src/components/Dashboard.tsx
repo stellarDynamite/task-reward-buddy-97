@@ -16,6 +16,7 @@ interface DashboardProps {
   badHabitsAvoided: number;
   totalBadHabits: number;
   rewardsClaimed: number;
+  dailyXPEarned: number;
 }
 
 const Dashboard = ({
@@ -28,6 +29,7 @@ const Dashboard = ({
   badHabitsAvoided,
   totalBadHabits,
   rewardsClaimed,
+  dailyXPEarned,
 }: DashboardProps) => {
   // Store the highest points value seen to ensure progress never decreases
   const [highestPointsToNextLevel, setHighestPointsToNextLevel] = React.useState(pointsToNextLevel);
@@ -42,8 +44,7 @@ const Dashboard = ({
   const displayPointsToNextLevel = Math.max(highestPointsToNextLevel, pointsToNextLevel);
   const progress = (displayPointsToNextLevel / pointsNeededForNextLevel) * 100;
   
-  // Get daily XP limit info from localStorage
-  const dailyXPEarned = Number(localStorage.getItem('dailyXPEarned') || '0');
+  // Get daily XP limit info
   const MAX_DAILY_XP = 400; // Should match the constant in Index.tsx
   const dailyXPProgress = Math.min((dailyXPEarned / MAX_DAILY_XP) * 100, 100);
   

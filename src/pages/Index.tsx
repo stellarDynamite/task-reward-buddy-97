@@ -127,6 +127,7 @@ const Index = () => {
             badHabitsAvoided={badHabitsAvoided}
             totalBadHabits={badHabits.length}
             rewardsClaimed={rewardsClaimed}
+            dailyXPEarned={dailyXPEarned}
           />
           
           {favoriteCharacter && (
