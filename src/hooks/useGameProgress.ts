@@ -234,7 +234,7 @@ export function useGameProgress({
             console.log('New day detected for authenticated user, performing reset...');
             performDailyReset(
               cloudProgress.tasks || INITIAL_TASKS,
-              cloudProgress.bad_habits || INITIAL_BAD_HABITS,
+              Array.isArray(cloudProgress.bad_habits) ? cloudProgress.bad_habits : INITIAL_BAD_HABITS,
               cloudProgress.good_habits || INITIAL_GOOD_HABITS,
               cloudProgress.rewards || INITIAL_REWARDS
             );
@@ -246,7 +246,7 @@ export function useGameProgress({
             // Today's entry will be appended by updateDailyStreakForDate if user acts today
           } else {
             setTasks(cloudProgress.tasks || INITIAL_TASKS);
-            setBadHabits(cloudProgress.bad_habits || INITIAL_BAD_HABITS);
+            setBadHabits(Array.isArray(cloudProgress.bad_habits) ? cloudProgress.bad_habits : INITIAL_BAD_HABITS);
             setGoodHabits(cloudProgress.good_habits || INITIAL_GOOD_HABITS);
             setRewards(cloudProgress.rewards || INITIAL_REWARDS);
             setPoints(cloudProgress.points || 50);
