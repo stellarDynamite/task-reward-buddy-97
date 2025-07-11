@@ -41,6 +41,7 @@ interface TaskListProps {
   onDeleteTask: (id: string) => void;
   onEditTask?: (task: Task) => void;
   onClearCompleted?: () => void;
+  todayTasksCompleted?: number;
 }
 
 const formatDeadline = (deadline?: Date | string): string => {
@@ -93,7 +94,8 @@ const TaskList = ({
   onCompleteTask, 
   onDeleteTask,
   onEditTask,
-  onClearCompleted
+  onClearCompleted,
+  todayTasksCompleted = 0
 }: TaskListProps) => {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [taskPoints, setTaskPoints] = useState('10');
@@ -110,7 +112,8 @@ const TaskList = ({
   const [showBalloons, setShowBalloons] = useState(false);
   const [showRainbow, setShowRainbow] = useState(false);
   
-  const todayTasksCompletedCount = (() => {
+  // Use the provided todayTasksCompleted or fall back to localStorage for local users
+  const todayTasksCompletedCount = todayTasksCompleted !== undefined ? todayTasksCompleted : (() => {
     const today = startOfDay(new Date());
     try {
       const savedStreaks = localStorage.getItem('dailyStreaks');

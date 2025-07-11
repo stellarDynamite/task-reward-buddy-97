@@ -151,6 +151,7 @@ const Index = () => {
           onDeleteTask={handleDeleteTask}
           onEditTask={handleEditTask}
           onClearCompleted={handleClearCompletedTasks}
+          todayTasksCompleted={todayTasksCompleted}
         />
       )}
       
