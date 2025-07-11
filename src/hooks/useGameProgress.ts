@@ -129,9 +129,8 @@ export function useGameProgress({
     // Tasks persist their completion status - no reset needed
     setTasks(loadedTasks);
     
-    // Reset good habits completion status
-    const resetGoodHabits = loadedGoodHabits.map(habit => ({ ...habit, completed: false }));
-    setGoodHabits(resetGoodHabits);
+    // Good habits should NOT reset on daily reset - they persist until manually reset
+    setGoodHabits(loadedGoodHabits);
     
     // Reset rewards claimed status
     const resetRewards = loadedRewards.map(reward => ({ ...reward, claimed: false }));
