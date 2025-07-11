@@ -39,12 +39,16 @@ export function useCharacterMotivation() {
   const [favoriteCharacter, setFavoriteCharacter] = useState<string>('');
   const [characterInput, setCharacterInput] = useState('');
   const [hasReachedLevel3, setHasReachedLevel3] = useState(false);
+  const [usedMessages, setUsedMessages] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const savedCharacter = localStorage.getItem('favoriteCharacter');
     const savedHasReachedLevel3 = localStorage.getItem('hasReachedLevel3');
+    const savedUsedMessages = localStorage.getItem('usedMessages');
+    
     if (savedCharacter) setFavoriteCharacter(savedCharacter);
     if (savedHasReachedLevel3) setHasReachedLevel3(JSON.parse(savedHasReachedLevel3));
+    if (savedUsedMessages) setUsedMessages(new Set(JSON.parse(savedUsedMessages)));
   }, []);
 
   const handleCharacterSubmit = () => {
@@ -64,7 +68,25 @@ export function useCharacterMotivation() {
       "Incredible dedication! Keep up the fantastic work!",
       "You're on fire! This is exactly the kind of effort that leads to success!"
     ];
-    const randomMessage = personas[Math.floor(Math.random() * personas.length)];
+
+    // Get available messages (not used yet)
+    const availableMessages = personas.filter(msg => !usedMessages.has(msg));
+    
+    // If all messages have been used, reset the used messages
+    if (availableMessages.length === 0) {
+      setUsedMessages(new Set());
+      localStorage.removeItem('usedMessages');
+      return `${favoriteCharacter.charAt(0).toUpperCase() + favoriteCharacter.slice(1)}: ${personas[0]}`;
+    }
+
+    // Pick a random message from available ones
+    const randomMessage = availableMessages[Math.floor(Math.random() * availableMessages.length)];
+    
+    // Mark this message as used
+    const newUsedMessages = new Set([...usedMessages, randomMessage]);
+    setUsedMessages(newUsedMessages);
+    localStorage.setItem('usedMessages', JSON.stringify(Array.from(newUsedMessages)));
+
     return `${favoriteCharacter.charAt(0).toUpperCase() + favoriteCharacter.slice(1)}: ${randomMessage}`;
   };
 
