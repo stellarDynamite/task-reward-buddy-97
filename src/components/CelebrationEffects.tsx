@@ -11,16 +11,16 @@ const CelebrationEffects = ({ confettiCount, showBalloons, showRainbow }: Celebr
   const [isActive, setIsActive] = useState(false);
   
   useEffect(() => {
-    if (confettiCount > 0) {
+    if (confettiCount > 0 || showBalloons || showRainbow) {
       setIsActive(true);
       
       const timer = setTimeout(() => {
         setIsActive(false);
-      }, 4000); // Animation duration
+      }, 5000); // Animation duration
       
       return () => clearTimeout(timer);
     }
-  }, [confettiCount]);
+  }, [confettiCount, showBalloons, showRainbow]);
   
   if (!isActive) return null;
   

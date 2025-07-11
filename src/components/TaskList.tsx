@@ -316,17 +316,27 @@ const TaskList = ({
     if (task) {
       toast.success(`Task completed! +${task.points} points`);
       
+      // Trigger confetti animation
       setConfettiTrigger(prev => prev + 1);
       
       const newTaskCount = todayTasksCompletedCount + 1;
       
+      // Reset and trigger celebration effects
       if (newTaskCount >= 3) {
-        setShowBalloons(true);
+        setShowBalloons(false);
+        setTimeout(() => setShowBalloons(true), 100);
         
         if (newTaskCount >= 4) {
-          setShowRainbow(true);
+          setShowRainbow(false);
+          setTimeout(() => setShowRainbow(true), 200);
         }
       }
+      
+      // Auto-reset celebration states after animation duration
+      setTimeout(() => {
+        setShowBalloons(false);
+        setShowRainbow(false);
+      }, 5000);
     }
   };
 
