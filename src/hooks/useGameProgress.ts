@@ -119,8 +119,8 @@ export function useGameProgress({
 
   const [highestLevel, setHighestLevel] = useState(1); // <-- New state for max level ever reached
 
-  // Patch all level calculation logic to always use highestLevel.
-  const [level, pointsToNextLevel, pointsNeededForNextLevel] = calculateLevel(points, highestLevel);
+  // Calculate level using startOfDayLevel to prevent decreasing within the same day
+  const [level, pointsToNextLevel, pointsNeededForNextLevel] = calculateLevel(points, startOfDayLevel);
 
   // Helper function to perform daily reset - FIXED: Only reset daily values, not persistent stats
   const performDailyReset = (loadedTasks: Task[], loadedBadHabits: BadHabit[], loadedGoodHabits: GoodHabit[], loadedRewards: Reward[]) => {
@@ -154,7 +154,7 @@ export function useGameProgress({
 
   // Helper: Update highestLevel when a new level is gained, including cloud sync.
   const maybeUpdateHighestLevel = (newPoints: number) => {
-    const [calcLevel] = calculateLevel(newPoints, highestLevel);
+    const [calcLevel] = calculateLevel(newPoints, startOfDayLevel);
     if (calcLevel > highestLevel) {
       setHighestLevel(calcLevel);
       if (user) {
