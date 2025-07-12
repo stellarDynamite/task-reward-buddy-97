@@ -139,8 +139,7 @@ export function useGameProgress({
     // Reset bad habits tracking for today
     setTriggeredBadHabitsToday(new Set());
     
-    // FIXED: Reset badHabitsAvoided to the current number of bad habits (daily reset)
-    setBadHabitsAvoided(loadedBadHabits.length);
+    // DON'T reset badHabitsAvoided - it should persist like good habits
     
     // Reset daily XP earned
     setDailyXPEarned(0);
