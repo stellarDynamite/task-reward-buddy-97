@@ -235,7 +235,7 @@ export function useGameProgress({
             console.log('New day detected for authenticated user, performing reset...');
             performDailyReset(
               cloudProgress.tasks || INITIAL_TASKS,
-              Array.isArray(cloudProgress.bad_habits) ? cloudProgress.bad_habits : INITIAL_BAD_HABITS,
+              Array.isArray(cloudProgress.bad_habits) && cloudProgress.bad_habits.length > 0 ? cloudProgress.bad_habits : badHabits,
               cloudProgress.good_habits || INITIAL_GOOD_HABITS,
               cloudProgress.rewards || INITIAL_REWARDS
             );
@@ -247,7 +247,7 @@ export function useGameProgress({
             // Today's entry will be appended by updateDailyStreakForDate if user acts today
           } else {
             setTasks(cloudProgress.tasks || INITIAL_TASKS);
-            setBadHabits(Array.isArray(cloudProgress.bad_habits) ? cloudProgress.bad_habits : INITIAL_BAD_HABITS);
+            setBadHabits(Array.isArray(cloudProgress.bad_habits) && cloudProgress.bad_habits.length > 0 ? cloudProgress.bad_habits : badHabits);
             setGoodHabits(cloudProgress.good_habits || INITIAL_GOOD_HABITS);
             setRewards(cloudProgress.rewards || INITIAL_REWARDS);
             setPoints(cloudProgress.points || 50);
@@ -257,7 +257,7 @@ export function useGameProgress({
             // FIXED: Load badHabitsAvoided from saved data instead of always resetting
             // Calculate badHabitsAvoided based on triggered habits
             const triggeredHabits = new Set(JSON.parse(localStorage.getItem('triggeredBadHabitsToday') || '[]'));
-            setBadHabitsAvoided((cloudProgress.bad_habits || INITIAL_BAD_HABITS).length - triggeredHabits.size);
+            setBadHabitsAvoided((Array.isArray(cloudProgress.bad_habits) && cloudProgress.bad_habits.length > 0 ? cloudProgress.bad_habits : badHabits).length - triggeredHabits.size);
           }
           toast.success("Progress loaded from your account!", { duration: 3000 });
         } else {
