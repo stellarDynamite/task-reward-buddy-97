@@ -126,11 +126,13 @@ export function useGameProgress({
   const performDailyReset = (loadedTasks: Task[], loadedBadHabits: BadHabit[], loadedGoodHabits: GoodHabit[], loadedRewards: Reward[]) => {
     console.log('Performing daily reset...');
     
-    // Tasks persist their completion status - no reset needed
-    setTasks(loadedTasks);
+    // Reset tasks completion status for new day
+    const resetTasks = loadedTasks.map(task => ({ ...task, completed: false }));
+    setTasks(resetTasks);
     
-    // Good habits should NOT reset on daily reset - they persist until manually reset
-    setGoodHabits(loadedGoodHabits);
+    // Reset good habits completion status for new day
+    const resetGoodHabits = loadedGoodHabits.map(habit => ({ ...habit, completed: false }));
+    setGoodHabits(resetGoodHabits);
     
     // Reset rewards claimed status
     const resetRewards = loadedRewards.map(reward => ({ ...reward, claimed: false }));
@@ -139,8 +141,8 @@ export function useGameProgress({
     // Reset bad habits tracking for today
     setTriggeredBadHabitsToday(new Set());
     
-    // Reset badHabitsAvoided count to 0 (daily reset of progress, not the habits themselves)
-    setBadHabitsAvoided(0);
+    // Reset badHabitsAvoided count to total bad habits (fresh start each day)
+    setBadHabitsAvoided(loadedBadHabits.length);
     
     // Reset daily XP earned
     setDailyXPEarned(0);
