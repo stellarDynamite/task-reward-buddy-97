@@ -231,11 +231,28 @@ export function useGameProgress({
           // Load streaks FIRST with proper date parsing
           const lastResetFromStorage = localStorage.getItem('lastDailyReset');
           const lastResetDate = lastResetFromStorage || new Date().toISOString();
+          
+          // Get current bad habits from localStorage as fallback
+          let localBadHabits = INITIAL_BAD_HABITS;
+          const savedBadHabits = localStorage.getItem('badHabits');
+          if (savedBadHabits) {
+            try {
+              localBadHabits = JSON.parse(savedBadHabits);
+            } catch (e) {
+              console.error("Error parsing local bad habits:", e);
+            }
+          }
+          
+          // Use cloud data if valid, otherwise use localStorage data
+          const finalBadHabits = Array.isArray(cloudProgress.bad_habits) && cloudProgress.bad_habits.length > 0 
+            ? cloudProgress.bad_habits 
+            : localBadHabits;
+          
           if (isNewDay(lastResetDate)) {
             console.log('New day detected for authenticated user, performing reset...');
             performDailyReset(
               cloudProgress.tasks || INITIAL_TASKS,
-              Array.isArray(cloudProgress.bad_habits) && cloudProgress.bad_habits.length > 0 ? cloudProgress.bad_habits : badHabits,
+              finalBadHabits,
               cloudProgress.good_habits || INITIAL_GOOD_HABITS,
               cloudProgress.rewards || INITIAL_REWARDS
             );
@@ -247,7 +264,7 @@ export function useGameProgress({
             // Today's entry will be appended by updateDailyStreakForDate if user acts today
           } else {
             setTasks(cloudProgress.tasks || INITIAL_TASKS);
-            setBadHabits(Array.isArray(cloudProgress.bad_habits) && cloudProgress.bad_habits.length > 0 ? cloudProgress.bad_habits : badHabits);
+            setBadHabits(finalBadHabits);
             setGoodHabits(cloudProgress.good_habits || INITIAL_GOOD_HABITS);
             setRewards(cloudProgress.rewards || INITIAL_REWARDS);
             setPoints(cloudProgress.points || 50);
@@ -257,7 +274,7 @@ export function useGameProgress({
             // FIXED: Load badHabitsAvoided from saved data instead of always resetting
             // Calculate badHabitsAvoided based on triggered habits
             const triggeredHabits = new Set(JSON.parse(localStorage.getItem('triggeredBadHabitsToday') || '[]'));
-            setBadHabitsAvoided((Array.isArray(cloudProgress.bad_habits) && cloudProgress.bad_habits.length > 0 ? cloudProgress.bad_habits : badHabits).length - triggeredHabits.size);
+            setBadHabitsAvoided(finalBadHabits.length - triggeredHabits.size);
           }
           toast.success("Progress loaded from your account!", { duration: 3000 });
         } else {
