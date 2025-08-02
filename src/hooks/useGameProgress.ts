@@ -658,15 +658,27 @@ export function useGameProgress({
   
   // --- Bad Habit Management ---
   const handleAddBadHabit = (badHabit: BadHabit) => {
-    setBadHabits([...badHabits, badHabit]);
+    const newBadHabits = [...badHabits, badHabit];
+    setBadHabits(newBadHabits);
     setBadHabitsAvoided(prev => prev + 1);
+    
+    // Immediately save to cloud for authenticated users
+    if (user && progressLoaded) {
+      saveProgress({ bad_habits: newBadHabits });
+    }
   };
   
   const handleDeleteBadHabit = (id: string) => {
     const isAvoided = badHabitsAvoided > 0 && badHabitsAvoided === badHabits.length;
-    setBadHabits(badHabits.filter(h => h.id !== id));
+    const newBadHabits = badHabits.filter(h => h.id !== id);
+    setBadHabits(newBadHabits);
     if (isAvoided) {
       setBadHabitsAvoided(prev => Math.max(0, prev - 1));
+    }
+    
+    // Immediately save to cloud for authenticated users
+    if (user && progressLoaded) {
+      saveProgress({ bad_habits: newBadHabits });
     }
   };
   
