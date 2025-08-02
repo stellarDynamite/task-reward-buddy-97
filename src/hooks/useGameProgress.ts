@@ -636,24 +636,54 @@ export function useGameProgress({
   
   // --- Task Management ---
   const handleAddTask = (task: Task) => {
-    setTasks([...tasks, task]);
+    const newTasks = [...tasks, task];
+    setTasks(newTasks);
+    
+    // Immediately save to cloud for authenticated users
+    if (user && progressLoaded) {
+      saveProgress({ tasks: newTasks });
+    }
   };
   
   const handleDeleteTask = (id: string) => {
-    setTasks(tasks.filter(t => t.id !== id));
+    const newTasks = tasks.filter(t => t.id !== id);
+    setTasks(newTasks);
+    
+    // Immediately save to cloud for authenticated users
+    if (user && progressLoaded) {
+      saveProgress({ tasks: newTasks });
+    }
   };
   
   const handleEditTask = (updatedTask: Task) => {
-    setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+    const newTasks = tasks.map(t => t.id === updatedTask.id ? updatedTask : t);
+    setTasks(newTasks);
+    
+    // Immediately save to cloud for authenticated users
+    if (user && progressLoaded) {
+      saveProgress({ tasks: newTasks });
+    }
   };
   
   // --- Good Habit Management ---
   const handleAddGoodHabit = (goodHabit: GoodHabit) => {
-    setGoodHabits([...goodHabits, goodHabit]);
+    const newGoodHabits = [...goodHabits, goodHabit];
+    setGoodHabits(newGoodHabits);
+    
+    // Immediately save to cloud for authenticated users
+    if (user && progressLoaded) {
+      saveProgress({ good_habits: newGoodHabits });
+    }
   };
   
   const handleDeleteGoodHabit = (id: string) => {
-    setGoodHabits(goodHabits.filter(h => h.id !== id));
+    const newGoodHabits = goodHabits.filter(h => h.id !== id);
+    setGoodHabits(newGoodHabits);
+    
+    // Immediately save to cloud for authenticated users
+    if (user && progressLoaded) {
+      saveProgress({ good_habits: newGoodHabits });
+    }
   };
   
   // --- Bad Habit Management ---
@@ -684,17 +714,29 @@ export function useGameProgress({
   
   // --- Reward Management ---
   const handleAddReward = (reward: Reward) => {
-    setRewards([...rewards, reward]);
+    const newRewards = [...rewards, reward];
+    setRewards(newRewards);
+    
+    // Immediately save to cloud for authenticated users
+    if (user && progressLoaded) {
+      saveProgress({ rewards: newRewards });
+    }
   };
   
   const handleDeleteReward = (id: string) => {
     const reward = rewards.find(r => r.id === id);
     const wasClaimed = reward?.claimed || false;
     
-    setRewards(rewards.filter(r => r.id !== id));
+    const newRewards = rewards.filter(r => r.id !== id);
+    setRewards(newRewards);
     
     if (wasClaimed) {
       setRewardsClaimed(prev => Math.max(0, prev - 1));
+    }
+    
+    // Immediately save to cloud for authenticated users
+    if (user && progressLoaded) {
+      saveProgress({ rewards: newRewards });
     }
   };
   
