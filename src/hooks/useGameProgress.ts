@@ -243,10 +243,12 @@ export function useGameProgress({
             }
           }
           
-          // Use cloud data if valid, otherwise use localStorage data
-          const finalBadHabits = Array.isArray(cloudProgress.bad_habits) && cloudProgress.bad_habits.length > 0 
-            ? cloudProgress.bad_habits 
-            : localBadHabits;
+          // Use the data source that has more habits (most recent data)
+          // This handles cases where cloud sync hasn't completed yet
+          const cloudBadHabits = Array.isArray(cloudProgress.bad_habits) ? cloudProgress.bad_habits : [];
+          const finalBadHabits = localBadHabits.length >= cloudBadHabits.length 
+            ? localBadHabits 
+            : cloudBadHabits;
           
           if (isNewDay(lastResetDate)) {
             console.log('New day detected for authenticated user, performing reset...');
