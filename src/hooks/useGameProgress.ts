@@ -235,25 +235,18 @@ export function useGameProgress({
           // Get current bad habits from localStorage as fallback
           let localBadHabits = INITIAL_BAD_HABITS;
           const savedBadHabits = localStorage.getItem('badHabits');
-          console.log('LOADING - localStorage badHabits raw:', savedBadHabits);
           if (savedBadHabits) {
             try {
               localBadHabits = JSON.parse(savedBadHabits);
-              console.log('LOADING - localStorage badHabits parsed:', localBadHabits.length, 'habits');
             } catch (e) {
               console.error("Error parsing local bad habits:", e);
             }
           }
           
-          // Use the data source that has more habits (most recent data)
-          // This handles cases where cloud sync hasn't completed yet
-          const cloudBadHabits = Array.isArray(cloudProgress.bad_habits) ? cloudProgress.bad_habits : [];
-          console.log('LOADING - Cloud badHabits:', cloudBadHabits.length, 'habits');
-          console.log('LOADING - Local badHabits:', localBadHabits.length, 'habits');
-          const finalBadHabits = localBadHabits.length >= cloudBadHabits.length 
-            ? localBadHabits 
-            : cloudBadHabits;
-          console.log('LOADING - Final badHabits chosen:', finalBadHabits.length, 'habits', 'Source:', localBadHabits.length >= cloudBadHabits.length ? 'localStorage' : 'cloud');
+          // Use cloud data if valid, otherwise use localStorage data
+          const finalBadHabits = Array.isArray(cloudProgress.bad_habits) && cloudProgress.bad_habits.length > 0 
+            ? cloudProgress.bad_habits 
+            : localBadHabits;
           
           if (isNewDay(lastResetDate)) {
             console.log('New day detected for authenticated user, performing reset...');
@@ -696,17 +689,12 @@ export function useGameProgress({
   // --- Bad Habit Management ---
   const handleAddBadHabit = (badHabit: BadHabit) => {
     const newBadHabits = [...badHabits, badHabit];
-    console.log('ADDING BAD HABIT - Current habits:', badHabits.length, 'New habits:', newBadHabits.length);
-    console.log('ADDING BAD HABIT - User authenticated:', !!user, 'Progress loaded:', progressLoaded);
     setBadHabits(newBadHabits);
     setBadHabitsAvoided(prev => prev + 1);
     
     // Immediately save to cloud for authenticated users
     if (user && progressLoaded) {
-      console.log('ADDING BAD HABIT - Saving to cloud immediately:', newBadHabits);
       saveProgress({ bad_habits: newBadHabits });
-    } else {
-      console.log('ADDING BAD HABIT - Not saving to cloud, user:', !!user, 'progressLoaded:', progressLoaded);
     }
   };
   

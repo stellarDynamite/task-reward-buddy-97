@@ -79,10 +79,6 @@ export default {
 					yellow: {
 						soft: '#FEF7CD',
 					},
-				},
-				progress: {
-					DEFAULT: 'hsl(var(--progress))',
-					foreground: 'hsl(var(--progress-foreground))'
 				}
 			},
 			borderRadius: {
