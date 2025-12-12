@@ -36,6 +36,9 @@
     
     --theme-purple: #a78bfa;
     --theme-purple-light: #c4b5fd;
+    
+    --progress: 45 93% 47%;
+    --progress-foreground: 45 93% 97%;
   }
 
   .dark {
@@ -66,6 +69,9 @@
     --border: 217 33% 18%;
     --input: 217 33% 18%;
     --ring: 260 60% 65%;
+    
+    --progress: 45 93% 47%;
+    --progress-foreground: 45 93% 97%;
   }
 }
 
